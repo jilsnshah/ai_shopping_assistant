@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Payments - AI Shopping Assistant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="section">
+        <h2>💳 Payments Management</h2>
+        <p class="subtitle">Manage your payment details and track order payments</p>
+
+        <!-- UPI Setup -->
+        <div class="card">
+            <h3>💰 Payment Settings</h3>
+            <form id="upiForm" class="form">
+                <div class="form-group">
+                    <label for="upi_id">Your UPI ID *</label>
+                    <input type="text" id="upi_id" name="upi_id" placeholder="yourname@upi" required>
+                    <small>Enter your UPI ID to receive payments (e.g., yourname@paytm, yourname@phonepe)</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Save UPI ID</button>
+                <div id="upiMessage" class="message"></div>
+            </form>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="payment-summary">
+            <div class="summary-card">
+                <div class="summary-icon">✅</div>
+                <div class="summary-content">
+                    <h4>Verified Payments</h4>
+                    <p class="summary-amount" id="verifiedAmount">$0.00</p>
+                    <p class="summary-count" id="verifiedCount">0 orders</p>
+                </div>
+            </div>
+            <div class="summary-card pending">
+                <div class="summary-icon">⏳</div>
+                <div class="summary-content">
+                    <h4>Pending Payments</h4>
+                    <p class="summary-amount" id="pendingAmount">$0.00</p>
+                    <p class="summary-count" id="pendingCount">0 orders</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Payments Table -->
+        <div class="orders-section">
+            <h3>⏳ Pending Payments</h3>
+            <button onclick="loadPayments()" class="btn btn-secondary">Refresh Payments</button>
+            <div class="table-container">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Product</th>
+                            <th>Buyer Name</th>
+                            <th>Amount</th>
+                            <th>Order Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingPaymentsBody">
+                        <tr>
+                            <td colspan="6" class="loading-cell">Loading payments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Verified Payments Table -->
+        <div class="orders-section">
+            <h3>✅ Verified Payments</h3>
+            <div class="table-container">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Product</th>
+                            <th>Buyer Name</th>
+                            <th>Amount</th>
+                            <th>Order Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifiedPaymentsBody">
+                        <tr>
+                            <td colspan="6" class="loading-cell">Loading payments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="paymentsMessage" class="message"></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endblock %}

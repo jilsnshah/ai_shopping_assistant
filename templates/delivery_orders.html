@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Delivery Orders - AI Shopping Assistant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="section">
+        <h2>📦 Delivery Orders Management</h2>
+        <p class="subtitle">View and manage your incoming and outgoing orders</p>
+
+        <!-- Orders Received -->
+        <div class="orders-section">
+            <h3>🔔 Orders Received</h3>
+            <button onclick="loadOrders('Received')" class="btn btn-secondary">Refresh Orders</button>
+            <div class="table-container">
+                <table class="orders-table" id="receivedOrdersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Product</th>
+                            <th>Buyer Name</th>
+                            <th>Delivery Address</th>
+                            <th>Amount</th>
+                            <th>Payment Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receivedOrdersBody">
+                        <tr>
+                            <td colspan="7" class="loading-cell">Loading orders...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders to Deliver -->
+        <div class="orders-section">
+            <h3>🚚 Orders to Deliver</h3>
+            <button onclick="loadOrders('To Deliver')" class="btn btn-secondary">Refresh Orders</button>
+            <div class="table-container">
+                <table class="orders-table" id="deliverOrdersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Product</th>
+                            <th>Buyer Name</th>
+                            <th>Delivery Address</th>
+                            <th>Amount</th>
+                            <th>Payment Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deliverOrdersBody">
+                        <tr>
+                            <td colspan="7" class="loading-cell">Loading orders...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="ordersMessage" class="message"></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/orders.js') }}"></script>
+{% endblock %}
