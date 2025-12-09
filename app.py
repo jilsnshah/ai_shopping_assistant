@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import os
 import json
 from datetime import datetime
+from whatsapp_msg import send_whatsapp_message
 
 app = Flask(__name__)
 
@@ -477,13 +478,48 @@ def update_order(order_id):
         # Find and update order
         for order in orders:
             if order['id'] == order_id:
+                # Track if order status changed
+                old_status = order.get('order_status')
+                status_changed = False
+                
                 if 'order_status' in data:
-                    order['order_status'] = data['order_status']
+                    new_status = data['order_status']
+                    if old_status != new_status:
+                        status_changed = True
+                        order['order_status'] = new_status
+                
                 if 'payment_status' in data:
                     order['payment_status'] = data['payment_status']
+                if 'buyer_phone' in data:
+                    order['buyer_phone'] = data['buyer_phone']
+                if 'delivery_lat' in data:
+                    order['delivery_lat'] = data['delivery_lat']
+                if 'delivery_lng' in data:
+                    order['delivery_lng'] = data['delivery_lng']
                 
                 # Save to JSON
                 save_data_to_json()
+                
+                # Send WhatsApp notification if status changed
+                if status_changed and order.get('buyer_phone'):
+                    buyer_phone = order['buyer_phone']
+                    product_name = order.get('product_name', 'your order')
+                    
+                    # Format the WhatsApp message
+                    message = (
+                        f"🛒 *Order Update* 🛒\n\n"
+                        f"Order ID: #{order_id}\n"
+                        f"Product: {product_name}\n"
+                        f"Status: *{new_status}*\n\n"
+                        f"Thank you for your order!"
+                    )
+                    
+                    # Send WhatsApp message
+                    try:
+                        send_whatsapp_message(buyer_phone, message)
+                        print(f"✅ WhatsApp notification sent to {buyer_phone}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to send WhatsApp notification: {e}")
                 
                 return jsonify({'message': 'Order updated successfully', 'order': order}), 200
         

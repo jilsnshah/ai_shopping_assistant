@@ -8,6 +8,11 @@ import os
 import requests
 import json
 from datetime import datetime
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.agents import create_agent
+from langchain.tools import tool
+from langgraph.checkpoint.memory import InMemorySaver
+from typing import Any
 
 # Import multi-agent system
 from multi_agent_system import get_orchestrator
@@ -35,6 +40,144 @@ def get_or_create_orchestrator():
     if orchestrator is None:
         orchestrator = get_orchestrator(GEMINI_API_KEY)
     return orchestrator
+
+
+# ==================== NAME COLLECTION AGENT ====================
+# Store for confirmed names (phone_number -> name)
+name_confirmations = {}
+
+@tool
+def confirm_buyer_name(name: str) -> str:
+    """Confirm and save the buyer's name after validation.
+    Use this tool ONLY when you are certain you have the buyer's correct full name.
+    
+    Args:
+        name: The buyer's full name (first and last name)
+    """
+    return f"CONFIRMED:{name}"
+
+
+def create_name_collection_agent():
+    """Create an LLM agent specifically for collecting and confirming buyer names"""
+    
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0.7,
+        google_api_key=GEMINI_API_KEY
+    )
+    
+    system_prompt = """You are a friendly name collection assistant for Fresh Fruits Market.
+
+🎯 YOUR ONLY JOB:
+Collect the buyer's full name (first and last name) and confirm it before proceeding.
+
+📋 WORKFLOW:
+1. If the user message looks like a greeting (hi, hello, hey): Ask for their full name warmly
+2. If the user provides what looks like a name: Confirm it by asking "Just to confirm, your name is [Name]?"
+3. If the user confirms (yes, correct, yeah, that's right, yep): Use confirm_buyer_name tool with the name
+4. If the user corrects or provides different name: Update the name and confirm again
+5. Keep asking until you get a clear full name (first and last name)
+
+✅ WHAT TO DO:
+- Be warm and friendly
+- Ask for FULL name (first and last)
+- Always confirm the name before using the tool
+- If user provides only first name, ask for last name
+- Use the confirm_buyer_name tool ONLY after explicit confirmation
+
+❌ WHAT NOT TO DO:
+- Don't accept single-word names without asking for full name
+- Don't confirm without asking the user first
+- Don't discuss products or orders (that's not your job)
+- Don't use the tool until user explicitly confirms their name
+
+💬 EXAMPLE FLOW:
+User: "Hi"
+You: "Welcome to Fresh Fruits Market! 🍎 Could you please share your full name?"
+
+User: "John"
+You: "Thanks John! Could you also share your last name?"
+
+User: "John Smith"
+You: "Great! Just to confirm, your name is John Smith?"
+
+User: "Yes"
+You: [Use confirm_buyer_name tool with "John Smith"]
+
+Remember: Be conversational and friendly, but stay focused on getting the full name confirmed!"""
+    
+    agent = create_agent(
+        llm,
+        tools=[confirm_buyer_name],
+        system_prompt=system_prompt,
+        checkpointer=InMemorySaver()
+    )
+    
+    return agent
+
+
+def collect_buyer_name(phone_number: str, message: str, agent) -> dict:
+    """Use LLM agent to collect and confirm buyer name
+    
+    Returns:
+        dict with 'confirmed': bool and 'name': str if confirmed, 'response': str for user
+    """
+    try:
+        response = agent.invoke(
+            {"messages": [{"role": "user", "content": message}]},
+            {"configurable": {"thread_id": f"name_collection_{phone_number}"}}
+        )
+        
+        # Extract response text
+        messages = response.get("messages", [])
+        if messages:
+            last_message = messages[-1]
+            
+            if hasattr(last_message, 'content'):
+                content = last_message.content
+            else:
+                content = last_message
+            
+            # Check if content is a list (Gemini format)
+            if isinstance(content, list):
+                text_parts = []
+                for item in content:
+                    if isinstance(item, dict) and 'text' in item:
+                        text_parts.append(item['text'])
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+                response_text = '\n'.join(text_parts)
+            else:
+                response_text = str(content)
+            
+            # Check if name was confirmed (tool was called)
+            if "CONFIRMED:" in response_text:
+                confirmed_name = response_text.split("CONFIRMED:")[1].strip()
+                print(f"✅ Name confirmed: {confirmed_name}")
+                return {
+                    "confirmed": True,
+                    "name": confirmed_name,
+                    "response": f"Thank you, {confirmed_name}! Your profile has been created. ✅"
+                }
+            else:
+                return {
+                    "confirmed": False,
+                    "response": response_text
+                }
+        
+        return {
+            "confirmed": False,
+            "response": "Welcome to Fresh Fruits Market! 🍎 Could you please share your full name?"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in name collection: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "confirmed": False,
+            "response": "Could you please share your full name to continue?"
+        }
 
 
 def send_whatsapp_message(phone_number: str, message: str):
@@ -67,20 +210,73 @@ def send_whatsapp_message(phone_number: str, message: str):
         return None
 
 
+# Name collection agents cache (phone_number -> agent)
+name_collection_agents = {}
+
 def process_whatsapp_message(phone_number: str, message_text: str):
     """Process incoming WhatsApp message and generate response using single agent system"""
     try:
         print(f"\n📱 Processing message from {phone_number}: {message_text}")
         
-        # Get orchestrator instance
-        orchestrator = get_or_create_orchestrator()
+        # Import check_buyer_profile and create_buyer_profile from tools
+        from tools import check_buyer_profile, create_buyer_profile
         
-        # Process message through single agent
-        agent_response = orchestrator["process_message"](message_text, phone_number)
+        # Check if buyer profile exists
+        buyer_profile = check_buyer_profile(phone_number)
         
-        print(f"🤖 Agent response: {agent_response}\n")
-        
-        return agent_response
+        if not buyer_profile.get('exists'):
+            # New buyer - use name collection agent
+            print(f"🆕 New buyer detected: {phone_number}")
+            
+            # Get or create name collection agent for this phone number
+            if phone_number not in name_collection_agents:
+                name_collection_agents[phone_number] = create_name_collection_agent()
+            
+            name_agent = name_collection_agents[phone_number]
+            
+            # Collect name using LLM agent
+            result = collect_buyer_name(phone_number, message_text, name_agent)
+            
+            if result.get('confirmed'):
+                # Name confirmed, create buyer profile
+                confirmed_name = result.get('name')
+                print(f"✅ Creating profile for: {confirmed_name}")
+                
+                create_result = create_buyer_profile(phone_number, confirmed_name)
+                
+                if create_result.get('success'):
+                    # Clean up name collection agent
+                    if phone_number in name_collection_agents:
+                        del name_collection_agents[phone_number]
+                    
+                    # Get main orchestrator and send welcome message
+                    orchestrator = get_or_create_orchestrator()
+                    welcome_response = orchestrator["process_message"](
+                        "Hi, I'd like to see what products you have", 
+                        phone_number,
+                        buyer_name=confirmed_name
+                    )
+                    
+                    return f"Thank you, {confirmed_name}! Your profile has been created. ✅\n\n{welcome_response}"
+                else:
+                    return "Sorry, I couldn't create your profile. Please try again or contact support."
+            else:
+                # Still collecting name, return agent's response
+                return result.get('response')
+        else:
+            # Existing buyer - process message normally
+            buyer_name = buyer_profile.get('name')
+            print(f"👤 Existing buyer: {buyer_name} ({phone_number})")
+            
+            # Get orchestrator instance
+            orchestrator = get_or_create_orchestrator()
+            
+            # Process message through agent with buyer context
+            agent_response = orchestrator["process_message"](message_text, phone_number, buyer_name=buyer_name)
+            
+            print(f"🤖 Agent response: {agent_response}\n")
+            
+            return agent_response
         
     except Exception as e:
         print(f"❌ Error processing message: {e}")

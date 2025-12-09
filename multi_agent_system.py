@@ -15,6 +15,8 @@ from typing import Any
 
 from tools import (
     set_current_user,
+    check_buyer_profile,
+    create_buyer_profile,
     get_company_information,
     browse_products,
     get_product_details,
@@ -86,6 +88,9 @@ def create_shopping_agent(gemini_api_key):
 🎯 YOUR ROLE:
 You help customers browse products, place orders, and track their order history through WhatsApp chat.
 
+👤 BUYER PROFILE:
+The system automatically manages buyer profiles. You will be notified if this is a returning customer and can greet them by name. You NEVER need to ask for the customer's name - it's handled automatically by the system.
+
 🛠️ YOUR AVAILABLE TOOLS:
 
 1. **get_company_information** - Get company details, contact info, and address
@@ -105,8 +110,9 @@ You help customers browse products, place orders, and track their order history 
 
 5. **create_order** - Place an order for the customer
    - Use when: Customer wants to buy/order something
-   - Input: product_id (internal), quantity, buyer_name, delivery_address
-   - IMPORTANT: Collect ALL information before calling this tool
+   - Input: product_id (internal), quantity, delivery_address
+   - IMPORTANT: Buyer name is automatically retrieved from their profile - NEVER ask for name
+   - Collect product, quantity, and delivery address only
 
 6. **get_my_orders** - Show customer's order history and status
    - Use when: Customer asks about "my orders", order status, or order history
@@ -118,12 +124,11 @@ When a customer wants to order:
 3. Ask customer which product they want by name (e.g., "Fresh Red Apples" or "Juicy Oranges")
 4. Internally match the product name to get the product_id from the catalog
 5. Ask for quantity
-6. Ask for their full name
-7. Ask for complete delivery address
-8. Use calculate_price to show total cost
-9. Confirm all details with customer (use product name, not ID)
-10. Use create_order tool with the internal product_id
-11. Provide order confirmation with product name and details
+6. Ask for complete delivery address
+7. Use calculate_price to show total cost
+8. Confirm all details with customer (use product name, not ID)
+9. Use create_order tool with the internal product_id (name is handled automatically)
+10. Provide order confirmation with product name and details
 
 💬 INTERACTION GUIDELINES:
 - Be warm, friendly, and conversational
@@ -162,8 +167,15 @@ Remember: You're chatting with customers via WhatsApp, so be conversational and 
 
 
 # ==================== MESSAGE PROCESSING ====================
-def process_message(user_message, phone_number, agent):
-    """Process user message through the agent"""
+def process_message(user_message, phone_number, agent, buyer_name=None):
+    """Process user message through the agent
+    
+    Args:
+        user_message: The user's message text
+        phone_number: User's phone number
+        agent: The agent instance
+        buyer_name: Optional buyer name (used when greeting returning customers)
+    """
     
     # Set current user in tools.py
     set_current_user(phone_number)
@@ -174,9 +186,15 @@ def process_message(user_message, phone_number, agent):
     print(f"{'='*60}\n")
     
     try:
+        # Add buyer context to message if this is a returning customer
+        if buyer_name:
+            user_message_with_context = f"[SYSTEM: This is {buyer_name}, a returning customer] {user_message}"
+        else:
+            user_message_with_context = user_message
+        
         # Invoke agent with messages format and thread_id for memory persistence
         response = agent.invoke(
-            {"messages": [{"role": "user", "content": user_message}]},
+            {"messages": [{"role": "user", "content": user_message_with_context}]},
             {"configurable": {"thread_id": phone_number}}  # Use phone number as thread_id
         )
         
@@ -230,6 +248,6 @@ def get_orchestrator(gemini_api_key):
     
     return {
         "agent": agent_executor,
-        "process_message": lambda msg, phone: process_message(msg, phone, agent_executor),
+        "process_message": lambda msg, phone, buyer_name=None: process_message(msg, phone, agent_executor, buyer_name),
         "reset": reset_conversation
     }

@@ -34,7 +34,7 @@ function displayOrders(orders) {
     const tableBody = document.getElementById('orders-table');
     
     if (orders.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">No orders found</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" class="text-center">No orders found</td></tr>';
         return;
     }
     
@@ -42,6 +42,7 @@ function displayOrders(orders) {
         <tr>
             <td>#${order.id}</td>
             <td>${order.buyer_name}</td>
+            <td>${order.buyer_phone || '7801833884'}</td>
             <td>${order.delivery_address ? order.delivery_address.substring(0, 15) + '...' : 'N/A'}</td>
             <td>${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}</td>
             <td><strong>₹${order.amount.toFixed(2)}</strong></td>
@@ -123,6 +124,10 @@ async function viewOrder(orderId) {
                 <div class="info-value">${order.buyer_name}</div>
             </div>
             <div class="info-item">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">${order.buyer_phone || '7801833884'}</div>
+            </div>
+            <div class="info-item">
                 <div class="info-label">Product:</div>
                 <div class="info-value">${order.product_name}</div>
             </div>
@@ -158,6 +163,12 @@ async function viewOrder(orderId) {
                 <div class="info-label">Delivery Address:</div>
                 <div class="info-value">${order.delivery_address}</div>
             </div>
+            ${order.delivery_lat && order.delivery_lng ? `
+            <div class="info-item">
+                <div class="info-label">Coordinates:</div>
+                <div class="info-value">Lat: ${order.delivery_lat}, Lng: ${order.delivery_lng}</div>
+            </div>
+            ` : ''}
         </div>
         ` : ''}
     `;

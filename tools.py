@@ -141,6 +141,77 @@ def get_product_by_id(product_id: int):
     return {"error": f"Product with ID {product_id} not found"}
 
 
+def check_buyer_profile(phone_number: str):
+    """
+    Check if buyer profile exists by phone number.
+    
+    Args:
+        phone_number (str): The phone number to check
+        
+    Returns:
+        dict: Buyer profile if exists, None otherwise
+    """
+    buyers_data = load_buyers_data()
+    
+    if phone_number in buyers_data.get('buyers', {}):
+        buyer = buyers_data['buyers'][phone_number]
+        return {
+            "exists": True,
+            "name": buyer.get('name'),
+            "phone_number": buyer.get('phone_number'),
+            "created_at": buyer.get('created_at'),
+            "total_orders": len(buyer.get('orders', []))
+        }
+    
+    return {
+        "exists": False,
+        "message": "No profile found for this phone number"
+    }
+
+
+def create_buyer_profile(phone_number: str, name: str):
+    """
+    Create a new buyer profile.
+    
+    Args:
+        phone_number (str): The buyer's phone number
+        name (str): The buyer's name
+        
+    Returns:
+        dict: Success status and buyer profile
+    """
+    buyers_data = load_buyers_data()
+    
+    # Check if profile already exists
+    if phone_number in buyers_data.get('buyers', {}):
+        return {
+            "success": False,
+            "error": "Buyer profile already exists",
+            "buyer": buyers_data['buyers'][phone_number]
+        }
+    
+    # Create new profile
+    buyers_data['buyers'][phone_number] = {
+        "phone_number": phone_number,
+        "name": name,
+        "created_at": datetime.now().isoformat(),
+        "orders": []
+    }
+    
+    # Save to file
+    if save_buyers_data(buyers_data):
+        return {
+            "success": True,
+            "message": f"Welcome {name}! Your profile has been created.",
+            "buyer": buyers_data['buyers'][phone_number]
+        }
+    else:
+        return {
+            "success": False,
+            "error": "Failed to save buyer profile"
+        }
+
+
 def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str, buyer_phone: str = None):
     """
     Place an order for a product and save it to both seller and buyer databases.
@@ -309,6 +380,31 @@ def calculate_order_total(product_id: int, quantity: int):
 
 # ==================== LANGCHAIN TOOL WRAPPERS ====================
 @tool
+def check_buyer_profile_tool(phone_number: str) -> str:
+    """Check if a buyer profile exists by phone number.
+    Use this at the start of conversation to check if buyer is returning customer.
+    
+    Args:
+        phone_number: The buyer's phone number
+    """
+    result = check_buyer_profile(phone_number)
+    return str(result)
+
+
+@tool
+def create_buyer_profile_tool(phone_number: str, name: str) -> str:
+    """Create a new buyer profile with phone number and name.
+    Use this when placing first order for a new buyer.
+    
+    Args:
+        phone_number: The buyer's phone number
+        name: The buyer's full name
+    """
+    result = create_buyer_profile(phone_number, name)
+    return str(result)
+
+
+@tool
 def get_company_information(query: str) -> str:
     """Get company information including name, description, contact details, and address.
     Use this when user asks about the company or store.
@@ -362,17 +458,24 @@ def calculate_price(product_id: str, quantity: str) -> str:
 
 
 @tool
-def create_order(product_id: str, quantity: str, buyer_name: str, delivery_address: str) -> str:
-    """Place an order for a product. Collects all required information.
+def create_order(product_id: str, quantity: str, delivery_address: str) -> str:
+    """Place an order for a product. Buyer name is automatically retrieved from profile.
     
     Args:
         product_id: The ID of the product to order
         quantity: How many units to order
-        buyer_name: Full name of the buyer
         delivery_address: Complete delivery address
     """
     try:
         phone_number = current_user.get("phone_number")
+        
+        # Get buyer profile to retrieve name
+        buyers_data = load_buyers_data()
+        if phone_number not in buyers_data.get('buyers', {}):
+            return "Error: Buyer profile not found. Please contact support."
+        
+        buyer_name = buyers_data['buyers'][phone_number].get('name')
+        
         result = place_order(int(product_id), int(quantity), buyer_name, delivery_address, phone_number)
         return str(result)
     except Exception as e:
