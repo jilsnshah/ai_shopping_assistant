@@ -1,79 +1,103 @@
 {% extends "base.html" %}
 
-{% block title %}Home - AI Shopping Assistant{% endblock %}
+{% block title %}Dashboard - Seller Hub{% endblock %}
 
 {% block content %}
-<div class="container">
-    <!-- Hero Section -->
-    <section id="home" class="hero-section">
-        <h2>Welcome to Your AI-Powered Shopping Assistant</h2>
-        <p>Manage your products and activate intelligent assistant features</p>
-    </section>
-
-    <!-- Registration Section -->
-    <section id="register" class="section">
-        <h2>Register Your Business</h2>
-        <div class="card">
-            <form id="registerForm" class="form">
-                <div class="form-group">
-                    <label for="company_name">Company Name *</label>
-                    <input type="text" id="company_name" name="company_name" required>
-                </div>
-                <div class="form-group">
-                    <label for="company_description">Company Description *</label>
-                    <textarea id="company_description" name="company_description" rows="4" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Register Business</button>
-                <div id="registerMessage" class="message"></div>
-            </form>
-        </div>
-    </section>
-
-    <!-- Add Product Section -->
-    <section id="add-product" class="section">
-        <h2>Add New Product</h2>
-        <div class="card">
-            <form id="addProductForm" class="form">
-                <div class="form-group">
-                    <label for="title">Product Name *</label>
-                    <input type="text" id="title" name="title" required>
-                </div>
-                <div class="form-group">
-                    <label for="description">Description *</label>
-                    <textarea id="description" name="description" rows="4" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="price">Price ($) *</label>
-                    <input type="number" id="price" name="price" step="0.01" min="0.01" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Add Product</button>
-                <div id="addProductMessage" class="message"></div>
-            </form>
-        </div>
-    </section>
-
-    <!-- My Products Section -->
-    <section id="my-products" class="section">
-        <h2>My Products</h2>
-        <button onclick="loadProducts()" class="btn btn-secondary">Refresh Products</button>
-        <div id="productsContainer" class="products-grid">
-            <!-- Products will be loaded here dynamically -->
-        </div>
-        <div id="productsMessage" class="message"></div>
-    </section>
-
-    <!-- AI Assistant Section -->
-    <section id="ai-assistant" class="section">
-        <h2>AI Assistant</h2>
-        <div class="card ai-card">
-            <div class="ai-content">
-                <div class="ai-icon">🤖</div>
-                <h3>Activate Your AI Shopping Assistant</h3>
-                <p>Enable intelligent features to help customers find products, answer questions, and improve their shopping experience.</p>
-                <button id="activateAIBtn" class="btn btn-success">Activate AI Assistant</button>
-                <div id="aiMessage" class="message"></div>
-            </div>
-        </div>
-    </section>
+<div class="page-header">
+    <h1>Dashboard Overview</h1>
+    <p class="subtitle">Welcome back! Here's what's happening with your store today.</p>
 </div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="total-orders">0</h3>
+            <p>Total Orders</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon green">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="total-revenue">₹0</h3>
+            <p>Total Revenue</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon orange">
+            <i class="fas fa-box"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="total-products">0</h3>
+            <p>Products</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon purple">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="total-customers">0</h3>
+            <p>Customers</p>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Orders -->
+<div class="section-container">
+    <div class="section-header">
+        <h2>Recent Orders</h2>
+        <a href="/orders" class="btn-link">View All <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="recent-orders-table">
+                <tr>
+                    <td colspan="6" class="text-center">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <h2>Quick Actions</h2>
+    <div class="action-buttons">
+        <a href="/products" class="action-btn">
+            <i class="fas fa-plus"></i>
+            Add Product
+        </a>
+        <a href="/company" class="action-btn">
+            <i class="fas fa-edit"></i>
+            Update Company
+        </a>
+        <a href="/orders" class="action-btn">
+            <i class="fas fa-list"></i>
+            View Orders
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

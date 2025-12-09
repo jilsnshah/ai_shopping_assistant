@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - Seller Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Order Management</h1>
+    <div class="filter-buttons">
+        <button class="filter-btn active" data-status="all" onclick="filterOrders('all')">
+            All Orders
+        </button>
+        <button class="filter-btn" data-status="pending" onclick="filterOrders('pending')">
+            <i class="fas fa-clock"></i> Pending
+        </button>
+        <button class="filter-btn" data-status="confirmed" onclick="filterOrders('confirmed')">
+            <i class="fas fa-check"></i> Confirmed
+        </button>
+        <button class="filter-btn" data-status="delivered" onclick="filterOrders('delivered')">
+            <i class="fas fa-truck"></i> Delivered
+        </button>
+        <button class="filter-btn" data-status="cancelled" onclick="filterOrders('cancelled')">
+            <i class="fas fa-times"></i> Cancelled
+        </button>
+    </div>
+</div>
+
+<!-- Orders Stats -->
+<div class="stats-row">
+    <div class="mini-stat">
+        <i class="fas fa-shopping-cart"></i>
+        <div>
+            <span class="mini-stat-value" id="pending-count">0</span>
+            <span class="mini-stat-label">Pending</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-check-circle"></i>
+        <div>
+            <span class="mini-stat-value" id="confirmed-count">0</span>
+            <span class="mini-stat-label">Confirmed</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-truck"></i>
+        <div>
+            <span class="mini-stat-value" id="delivered-count">0</span>
+            <span class="mini-stat-label">Delivered</span>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Table -->
+<div class="section-container">
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Products</th>
+                    <th>Amount</th>
+                    <th>Payment Status</th>
+                    <th>Order Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="orders-table">
+                <tr>
+                    <td colspan="9" class="text-center">Loading orders...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div id="order-modal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2>Order Details</h2>
+            <button class="close-btn" onclick="closeOrderModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="order-details">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div id="status-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Update Order Status</h2>
+            <button class="close-btn" onclick="closeStatusModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="status-form">
+            <input type="hidden" id="status-order-id">
+            
+            <div class="form-group">
+                <label for="order-status">
+                    <i class="fas fa-shopping-cart"></i> Order Status
+                </label>
+                <select id="order-status" required>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="payment-status">
+                    <i class="fas fa-money-bill-wave"></i> Payment Status
+                </label>
+                <select id="payment-status" required>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Status
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeStatusModal()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/orders.js') }}"></script>
+{% endblock %}

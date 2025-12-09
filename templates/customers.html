@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Customers - Seller Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Customer Management</h1>
+    <p class="subtitle">View and manage your customer database</p>
+</div>
+
+<!-- Customer Stats -->
+<div class="stats-row">
+    <div class="mini-stat">
+        <i class="fas fa-users"></i>
+        <div>
+            <span class="mini-stat-value" id="total-customers-count">0</span>
+            <span class="mini-stat-label">Total Customers</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-shopping-bag"></i>
+        <div>
+            <span class="mini-stat-value" id="active-customers-count">0</span>
+            <span class="mini-stat-label">Active Customers</span>
+        </div>
+    </div>
+</div>
+
+<!-- Customers Table -->
+<div class="section-container">
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Phone Number</th>
+                    <th>Total Orders</th>
+                    <th>Total Spent</th>
+                    <th>Last Order</th>
+                    <th>Joined Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="customers-table">
+                <tr>
+                    <td colspan="7" class="text-center">Loading customers...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Customer Details Modal -->
+<div id="customer-modal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2>Customer Details</h2>
+            <button class="close-btn" onclick="closeCustomerModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="customer-details">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+{% endblock %}

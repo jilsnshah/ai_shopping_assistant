@@ -82,6 +82,22 @@ def add_header(response):
 def index():
     return render_template('index.html')
 
+@app.route('/company')
+def company():
+    return render_template('company.html')
+
+@app.route('/products')
+def products():
+    return render_template('products.html')
+
+@app.route('/orders')
+def orders():
+    return render_template('orders.html')
+
+@app.route('/customers')
+def customers():
+    return render_template('customers.html')
+
 
 @app.route('/register', methods=['POST'])
 def register():
