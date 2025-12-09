@@ -100,103 +100,11 @@ def customers():
     return render_template('customers.html')
 
 
-@app.route('/register', methods=['POST'])
-def register():
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['company_name', 'company_description']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Check if email already exists (if provided)
-        if data.get('email'):
-            if any(s['email'] == data['email'] for s in sellers):
-                return jsonify({'error': 'Email already registered'}), 400
-        
-        # Generate new seller ID
-        seller_id = len(sellers) + 1
-        
-        # Create new seller
-        seller = {
-            'id': seller_id,
-            'company_name': data['company_name'],
-            'company_description': data['company_description'],
-            'owner_name': data.get('owner_name', ''),
-            'email': data.get('email', ''),
-            'phone': data.get('phone', ''),
-            'address': data.get('address', ''),
-            'upi_id': None,
-            'registered_at': datetime.now().isoformat()
-        }
-        
-        sellers.append(seller)
-        
-        # Save to JSON file
-        save_data_to_json()
-        
-        return jsonify({
-            'message': 'Business registered successfully',
-            'seller': seller
-        }), 201
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# ===== API ENDPOINTS =====
 
-
-@app.route('/add_product', methods=['POST'])
-def add_product():
-    try:
-        # Get JSON data
-        data = request.get_json()
-        title = data.get('title')
-        description = data.get('description')
-        price = data.get('price')
-        seller_id = int(data.get('seller_id', 1))  # Default seller ID for MVP
-        
-        # Validate required fields
-        if not all([title, description, price]):
-            return jsonify({'error': 'Title, description, and price are required'}), 400
-        
-        try:
-            price = float(price)
-            if price <= 0:
-                return jsonify({'error': 'Price must be greater than 0'}), 400
-        except ValueError:
-            return jsonify({'error': 'Invalid price format'}), 400
-        
-        # Generate unique product ID
-        product_id = len(products) + 1
-        
-        # Create product
-        product = {
-            'id': product_id,
-            'seller_id': seller_id,
-            'title': title,
-            'description': description,
-            'price': price,
-            'created_at': datetime.now().isoformat()
-        }
-        
-        products.append(product)
-        
-        # Save to JSON file
-        save_data_to_json()
-        
-        return jsonify({
-            'message': 'Product added successfully',
-            'product': product,
-            'product_id': product_id
-        }), 201
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/products', methods=['GET'])
+@app.route('/api/products', methods=['GET'])
 def get_products():
+    """Get all products for a seller"""
     try:
         seller_id = int(request.args.get('seller_id', 1))  # Default seller ID for MVP
         
@@ -217,18 +125,6 @@ def get_products():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
-@app.route('/delivery_orders')
-def delivery_orders():
-    """Render delivery orders page"""
-    return render_template('delivery_orders.html')
-
-
-@app.route('/payments')
-def payments():
-    """Render payments page"""
-    return render_template('payments.html')
 
 
 @app.route('/api/orders', methods=['GET'])
@@ -289,36 +185,6 @@ def update_upi():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/mark_paid', methods=['POST'])
-def mark_paid():
-    """Mark an order as paid"""
-    try:
-        data = request.get_json()
-        order_id = data.get('order_id')
-        
-        if not order_id:
-            return jsonify({'error': 'Order ID is required'}), 400
-        
-        # Find and update order
-        order_found = False
-        for order in orders:
-            if order['id'] == order_id:
-                order['payment_status'] = 'Verified'
-                order_found = True
-                break
-        
-        if order_found:
-            # Save to JSON file
-            save_data_to_json()
-        
-        return jsonify({
-            'message': 'Order marked as paid successfully'
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/seller_info', methods=['GET'])
 def get_seller_info():
     """Get seller information including UPI ID"""
@@ -343,17 +209,6 @@ def get_seller_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/activate_ai', methods=['POST'])
-def activate_ai():
-    """Placeholder endpoint for AI activation"""
-    return jsonify({
-        'message': 'AI Assistant activation feature coming soon!',
-        'status': 'pending'
-    }), 200
-
-
-# ===== NEW API ENDPOINTS FOR FRONTEND =====
 
 @app.route('/api/company', methods=['GET', 'POST'])
 def company_info():
