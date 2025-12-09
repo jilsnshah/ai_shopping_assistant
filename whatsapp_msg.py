@@ -332,12 +332,29 @@ def webhook_callback():
                         from_number = message.get("from")
                         message_type = message.get("type")
                         
-                        # Only process text messages
+                        # Process text messages
                         if message_type == "text":
                             message_text = message.get("text", {}).get("body", "")
                             
                             # Process the message with the AI agent
                             agent_response = process_whatsapp_message(from_number, message_text)
+                            
+                            # Send response back via WhatsApp
+                            send_whatsapp_message(from_number, agent_response)
+                        
+                        # Process location messages
+                        elif message_type == "location":
+                            location_data = message.get("location", {})
+                            latitude = location_data.get("latitude")
+                            longitude = location_data.get("longitude")
+                            
+                            # Convert location to text format
+                            location_text = f"[location] : latitude: {latitude}, longitude: {longitude}"
+                            
+                            print(f"📍 Location received from {from_number}: {location_text}")
+                            
+                            # Process the location as a text message with the AI agent
+                            agent_response = process_whatsapp_message(from_number, location_text)
                             
                             # Send response back via WhatsApp
                             send_whatsapp_message(from_number, agent_response)
