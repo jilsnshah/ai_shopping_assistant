@@ -27,6 +27,10 @@ wheels/
 instance/
 .webassets-cache
 
+# Environment variables
+.env
+.env.local
+
 # Data files
 data/sellers.json
 data/products.json

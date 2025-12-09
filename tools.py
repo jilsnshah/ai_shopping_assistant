@@ -6,10 +6,23 @@ This file contains all the functions that will be used as tools by the LangChain
 import json
 import os
 from datetime import datetime
+from langchain.tools import tool
+
+
+# ==================== GLOBAL STATE ====================
+current_user = {
+    "phone_number": None,
+}
+
+
+def set_current_user(phone_number):
+    """Set the current user's phone number"""
+    global current_user
+    current_user["phone_number"] = phone_number
 
 
 def load_sample_data():
-    """Load data from sample_data.json file"""
+    """Load data from sample_data.json file (seller data)"""
     json_file_path = os.path.join('static', 'sample_data.json')
     
     try:
@@ -22,6 +35,35 @@ def load_sample_data():
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON: {e}")
         return None
+
+
+def load_buyers_data():
+    """Load data from buyers_data.json file"""
+    json_file_path = os.path.join('static', 'buyers_data.json')
+    
+    try:
+        with open(json_file_path, 'r') as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        print(f"Error: {json_file_path} not found!")
+        return {"buyers": {}}
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON: {e}")
+        return {"buyers": {}}
+
+
+def save_buyers_data(data):
+    """Save data to buyers_data.json file"""
+    json_file_path = os.path.join('static', 'buyers_data.json')
+    
+    try:
+        with open(json_file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving buyers data: {e}")
+        return False
 
 
 def get_company_info():
@@ -99,27 +141,29 @@ def get_product_by_id(product_id: int):
     return {"error": f"Product with ID {product_id} not found"}
 
 
-def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str):
+def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str, buyer_phone: str = None):
     """
-    Place an order for a product and save it to the JSON file.
+    Place an order for a product and save it to both seller and buyer databases.
     
     Args:
         product_id (int): The ID of the product to order
         quantity (int): Number of items to order
         buyer_name (str): Name of the buyer
         delivery_address (str): Delivery address for the order
+        buyer_phone (str): Phone number of the buyer (for WhatsApp orders)
         
     Returns:
         dict: Order confirmation with order details
     """
-    data = load_sample_data()
+    # Load seller data (products)
+    seller_data = load_sample_data()
     
-    if not data:
-        return {"error": "Unable to load data"}
+    if not seller_data:
+        return {"error": "Unable to load seller data"}
     
     # Find the product
     product = None
-    for p in data.get('products', []):
+    for p in seller_data.get('products', []):
         if p.get('id') == product_id:
             product = p
             break
@@ -137,9 +181,30 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     # Get seller_id from product
     seller_id = product.get('seller_id', 1)
     
-    # Create new order
+    # Generate order ID
+    order_id = len(seller_data.get('orders', [])) + 1
+    
+    # Create timestamp
+    timestamp = datetime.now().isoformat()
+    
+    # Create new order for buyer
     order = {
-        "id": len(data.get('orders', [])) + 1,
+        "order_id": order_id,
+        "seller_id": seller_id,
+        "product_id": product_id,
+        "product_name": product.get('title'),
+        "quantity": quantity,
+        "unit_price": product.get('price'),
+        "total_amount": total_amount,
+        "delivery_address": delivery_address,
+        "payment_status": "Pending",
+        "status": "Received",
+        "order_date": timestamp
+    }
+    
+    # Save to seller database (for portal)
+    seller_order = {
+        "id": order_id,
         "seller_id": seller_id,
         "product_id": product_id,
         "product_name": product.get('title'),
@@ -150,29 +215,55 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
         "amount": total_amount,
         "payment_status": "Pending",
         "order_status": "Received",
-        "created_at": datetime.now().isoformat()
+        "created_at": timestamp
     }
     
-    # Add order to data
-    if 'orders' not in data:
-        data['orders'] = []
-    data['orders'].append(order)
+    if 'orders' not in seller_data:
+        seller_data['orders'] = []
+    seller_data['orders'].append(seller_order)
     
-    # Save updated data back to JSON file
     json_file_path = os.path.join('static', 'sample_data.json')
     try:
         with open(json_file_path, 'w') as f:
-            json.dump(data, f, indent=2)
+            json.dump(seller_data, f, indent=2)
     except Exception as e:
         return {
-            "error": f"Order created but failed to save: {str(e)}",
+            "error": f"Order created but failed to save to seller DB: {str(e)}",
             "order_details": order
         }
     
+    # Save to buyer database (for WhatsApp users)
+    if buyer_phone:
+        buyers_data = load_buyers_data()
+        
+        # Create or update buyer
+        if buyer_phone not in buyers_data['buyers']:
+            buyers_data['buyers'][buyer_phone] = {
+                "phone_number": buyer_phone,
+                "name": buyer_name,
+                "created_at": datetime.now().isoformat(),
+                "orders": []
+            }
+        else:
+            # Update buyer name if provided
+            if buyer_name:
+                buyers_data['buyers'][buyer_phone]['name'] = buyer_name
+        
+        # Add order to buyer's orders
+        buyers_data['buyers'][buyer_phone]['orders'].append(order)
+        
+        # Save buyers data
+        if not save_buyers_data(buyers_data):
+            print("Warning: Failed to save to buyer database")
+    
     return {
         "success": True,
-        "message": "Order placed successfully and saved!",
-        "order_details": order
+        "message": f"Order placed successfully! Order ID: {order_id}. Total: ₹{total_amount:.2f}",
+        "order_id": order_id,
+        "product_name": product.get('title'),
+        "quantity": quantity,
+        "total_amount": total_amount,
+        "delivery_address": delivery_address
     }
 
 
@@ -216,7 +307,113 @@ def calculate_order_total(product_id: int, quantity: int):
     }
 
 
-# Test functions
+# ==================== LANGCHAIN TOOL WRAPPERS ====================
+@tool
+def get_company_information(query: str) -> str:
+    """Get company information including name, description, contact details, and address.
+    Use this when user asks about the company or store.
+    
+    Args:
+        query: User's question about the company
+    """
+    info = get_company_info()
+    return str(info)
+
+
+@tool
+def browse_products(query: str) -> str:
+    """Get all available products with IDs, names, descriptions, and prices.
+    Use this when user wants to see what products are available or browse the catalog.
+    
+    Args:
+        query: User's request to see products
+    """
+    catalog = get_product_catalog()
+    return str(catalog)
+
+
+@tool
+def get_product_details(product_id: str) -> str:
+    """Get detailed information about a specific product by its ID.
+    
+    Args:
+        product_id: The ID of the product (e.g., "1", "2", "3")
+    """
+    try:
+        product = get_product_by_id(int(product_id))
+        return str(product)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def calculate_price(product_id: str, quantity: str) -> str:
+    """Calculate total price for a product and quantity.
+    
+    Args:
+        product_id: The ID of the product
+        quantity: The quantity to calculate price for
+    """
+    try:
+        total = calculate_order_total(int(product_id), int(quantity))
+        return str(total)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def create_order(product_id: str, quantity: str, buyer_name: str, delivery_address: str) -> str:
+    """Place an order for a product. Collects all required information.
+    
+    Args:
+        product_id: The ID of the product to order
+        quantity: How many units to order
+        buyer_name: Full name of the buyer
+        delivery_address: Complete delivery address
+    """
+    try:
+        phone_number = current_user.get("phone_number")
+        result = place_order(int(product_id), int(quantity), buyer_name, delivery_address, phone_number)
+        return str(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def get_my_orders(query: str) -> str:
+    """Get order history and status for the current user.
+    Use this when user asks about their orders, order status, or order history.
+    
+    Args:
+        query: User's question about orders
+    """
+    phone_number = current_user.get("phone_number")
+    buyers_data = load_buyers_data()
+    
+    if phone_number not in buyers_data.get('buyers', {}):
+        return "No orders found for this number. Would you like to place your first order?"
+    
+    buyer = buyers_data['buyers'][phone_number]
+    orders = buyer.get('orders', [])
+    
+    if not orders:
+        return f"Hi {buyer.get('name', 'there')}! You haven't placed any orders yet."
+    
+    orders_summary = f"Buyer: {buyer.get('name')}\nTotal Orders: {len(orders)}\n\n"
+    for idx, order in enumerate(orders, 1):
+        orders_summary += f"Order {idx}:\n"
+        orders_summary += f"- Order ID: {order.get('order_id')}\n"
+        orders_summary += f"- Date: {order.get('order_date')}\n"
+        orders_summary += f"- Product: {order.get('product_name')}\n"
+        orders_summary += f"- Quantity: {order.get('quantity')}\n"
+        orders_summary += f"- Total: ₹{order.get('total_amount')}\n"
+        orders_summary += f"- Status: {order.get('status', 'Pending')}\n"
+        orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"
+    
+    return orders_summary
+
+
+# ==================== TEST FUNCTIONS ====================
 if __name__ == "__main__":
     print("=== Testing Tool Functions ===\n")
     
