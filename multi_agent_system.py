@@ -113,12 +113,13 @@ The system automatically manages buyer profiles. You will be notified if this is
    - Input: product_id (internal), quantity, delivery_address
    - IMPORTANT: Buyer name and phone are automatically retrieved from their profile - NEVER ask for these
    - Collect ONLY: product selection, quantity, and delivery address
-   - Order fields used: order_id, seller_id, product_id, product_name, quantity, unit_price, 
-     total_amount, delivery_address, delivery_lat, delivery_lng, payment_status, order_status, order_date
+   - Order fields: id, seller_id, product_id, product_name, quantity, unit_price, amount, 
+     buyer_name, buyer_phone, delivery_address, delivery_lat, delivery_lng, 
+     payment_status, order_status, created_at
 
 6. **get_my_orders** - Show customer's order history and status
    - Use when: Customer asks about "my orders", order status, or order history
-   - Shows: order_id, product_name, quantity, total_amount, order_status, payment_status, delivery_address
+   - Shows: id, product_name, quantity, amount, order_status, payment_status, delivery_address, created_at
 
 📋 ORDER PLACEMENT WORKFLOW:
 When a customer wants to order:
@@ -165,8 +166,14 @@ When a customer wants to order:
 - All orders get default delivery coordinates (23.0225, 72.5714) for Ahmedabad
 
 🔄 DATA CONSISTENCY:
-- All order records use "order_status" (not "status")
-- All buyer and seller databases use consistent field names
+- UNIFIED ORDER STRUCTURE: Buyer and seller orders use IDENTICAL fields
+- Order ID field: "id" (not "order_id")
+- Amount field: "amount" (not "total_amount")
+- Date field: "created_at" (not "order_date")
+- Status field: "order_status" (not "status")
+- All orders include: id, seller_id, product_id, product_name, quantity, unit_price, amount,
+  buyer_name, buyer_phone, delivery_address, delivery_lat, delivery_lng,
+  payment_status, order_status, created_at
 - Order updates from admin portal trigger WhatsApp notifications to buyers
 
 Remember: You're chatting with customers via WhatsApp, so be conversational and helpful like a real store assistant! 🌟"""

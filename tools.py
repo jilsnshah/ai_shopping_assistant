@@ -262,37 +262,21 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     delivery_lat = 23.0225
     delivery_lng = 72.5714
     
-    # Create new order for buyer
+    # Create unified order structure
+    # This structure is IDENTICAL for both buyer and seller databases
     order = {
-        "order_id": order_id,
-        "seller_id": seller_id,
-        "product_id": product_id,
-        "product_name": product.get('title'),
-        "quantity": quantity,
-        "unit_price": product.get('price'),
-        "total_amount": total_amount,
-        "delivery_address": delivery_address,
-        "delivery_lat": delivery_lat,
-        "delivery_lng": delivery_lng,
-        "payment_status": "Pending",
-        "order_status": "Received",
-        "order_date": timestamp
-    }
-    
-    # Save to seller database (for portal)
-    seller_order = {
         "id": order_id,
         "seller_id": seller_id,
         "product_id": product_id,
         "product_name": product.get('title'),
         "quantity": quantity,
+        "unit_price": product.get('price'),
+        "amount": total_amount,
         "buyer_name": buyer_name,
         "buyer_phone": buyer_phone if buyer_phone else "",
         "delivery_address": delivery_address,
         "delivery_lat": delivery_lat,
         "delivery_lng": delivery_lng,
-        "unit_price": product.get('price'),
-        "amount": total_amount,
         "payment_status": "Pending",
         "order_status": "Received",
         "created_at": timestamp
@@ -300,7 +284,7 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     
     if 'orders' not in seller_data:
         seller_data['orders'] = []
-    seller_data['orders'].append(seller_order)
+    seller_data['orders'].append(order)
     
     json_file_path = os.path.join('static', 'sample_data.json')
     try:
@@ -329,7 +313,7 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
             if buyer_name:
                 buyers_data['buyers'][buyer_phone]['name'] = buyer_name
         
-        # Add order to buyer's orders
+        # Add order to buyer's orders (same structure as seller)
         buyers_data['buyers'][buyer_phone]['orders'].append(order)
         
         # Save buyers data
@@ -342,7 +326,7 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
         "order_id": order_id,
         "product_name": product.get('title'),
         "quantity": quantity,
-        "total_amount": total_amount,
+        "amount": total_amount,
         "delivery_address": delivery_address
     }
 
@@ -383,7 +367,7 @@ def calculate_order_total(product_id: int, quantity: int):
         "product_name": product.get('title'),
         "unit_price": unit_price,
         "quantity": quantity,
-        "total_amount": total
+        "amount": total
     }
 
 
@@ -514,11 +498,11 @@ def get_my_orders(query: str) -> str:
     orders_summary = f"Buyer: {buyer.get('name')}\nTotal Orders: {len(orders)}\n\n"
     for idx, order in enumerate(orders, 1):
         orders_summary += f"Order {idx}:\n"
-        orders_summary += f"- Order ID: {order.get('order_id')}\n"
-        orders_summary += f"- Date: {order.get('order_date')}\n"
+        orders_summary += f"- Order ID: {order.get('id')}\n"
+        orders_summary += f"- Date: {order.get('created_at')}\n"
         orders_summary += f"- Product: {order.get('product_name')}\n"
         orders_summary += f"- Quantity: {order.get('quantity')}\n"
-        orders_summary += f"- Total: ₹{order.get('total_amount')}\n"
+        orders_summary += f"- Total: ₹{order.get('amount')}\n"
         orders_summary += f"- Status: {order.get('order_status', 'Pending')}\n"
         orders_summary += f"- Payment: {order.get('payment_status', 'Pending')}\n"
         orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"

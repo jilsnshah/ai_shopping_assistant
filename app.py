@@ -478,18 +478,26 @@ def update_order(order_id):
         # Find and update order
         for order in orders:
             if order['id'] == order_id:
-                # Track if order status changed
-                old_status = order.get('order_status')
-                status_changed = False
+                # Track if order status or payment status changed
+                old_order_status = order.get('order_status')
+                old_payment_status = order.get('payment_status')
+                order_status_changed = False
+                payment_status_changed = False
+                new_order_status = old_order_status
+                new_payment_status = old_payment_status
                 
                 if 'order_status' in data:
-                    new_status = data['order_status']
-                    if old_status != new_status:
-                        status_changed = True
-                        order['order_status'] = new_status
+                    new_order_status = data['order_status']
+                    if old_order_status != new_order_status:
+                        order_status_changed = True
+                        order['order_status'] = new_order_status
                 
                 if 'payment_status' in data:
-                    order['payment_status'] = data['payment_status']
+                    new_payment_status = data['payment_status']
+                    if old_payment_status != new_payment_status:
+                        payment_status_changed = True
+                    order['payment_status'] = new_payment_status
+                    
                 if 'buyer_phone' in data:
                     order['buyer_phone'] = data['buyer_phone']
                 if 'delivery_lat' in data:
@@ -500,26 +508,62 @@ def update_order(order_id):
                 # Save to JSON
                 save_data_to_json()
                 
-                # Send WhatsApp notification if status changed
-                if status_changed and order.get('buyer_phone'):
-                    buyer_phone = order['buyer_phone']
+                buyer_phone = order.get('buyer_phone')
+                
+                # Send WhatsApp notification if order status changed
+                if order_status_changed and buyer_phone:
                     product_name = order.get('product_name', 'your order')
                     
-                    # Format the WhatsApp message
                     message = (
                         f"🛒 *Order Update* 🛒\n\n"
                         f"Order ID: #{order_id}\n"
                         f"Product: {product_name}\n"
-                        f"Status: *{new_status}*\n\n"
+                        f"Status: *{new_order_status}*\n\n"
                         f"Thank you for your order!"
                     )
                     
-                    # Send WhatsApp message
                     try:
                         send_whatsapp_message(buyer_phone, message)
-                        print(f"✅ WhatsApp notification sent to {buyer_phone}")
+                        print(f"✅ Order status WhatsApp notification sent to {buyer_phone}")
                     except Exception as e:
-                        print(f"⚠️ Failed to send WhatsApp notification: {e}")
+                        print(f"⚠️ Failed to send order status notification: {e}")
+                
+                # Send payment request WhatsApp notification if payment status changed to "Requested"
+                if payment_status_changed and new_payment_status == "Requested" and buyer_phone:
+                    product_name = order.get('product_name', 'your order')
+                    amount = order.get('amount', 0)
+                    seller_id = order.get('seller_id', 1)
+                    
+                    # Get seller's UPI ID
+                    seller = next((s for s in sellers if s['id'] == seller_id), None)
+                    upi_id = seller.get('upi_id', '') if seller else ''
+                    
+                    if upi_id:
+                        message = (
+                            f"💳 *Payment Request* 💳\n\n"
+                            f"Order ID: #{order_id}\n"
+                            f"Product: {product_name}\n"
+                            f"Amount: *₹{amount:.2f}*\n\n"
+                            f"Please pay to UPI ID:\n"
+                            f"📱 *{upi_id}*\n\n"
+                            f"After payment, please share the transaction screenshot for verification.\n\n"
+                            f"Thank you! 🙏"
+                        )
+                    else:
+                        message = (
+                            f"💳 *Payment Request* 💳\n\n"
+                            f"Order ID: #{order_id}\n"
+                            f"Product: {product_name}\n"
+                            f"Amount: *₹{amount:.2f}*\n\n"
+                            f"Please contact the seller for payment details.\n\n"
+                            f"Thank you! 🙏"
+                        )
+                    
+                    try:
+                        send_whatsapp_message(buyer_phone, message)
+                        print(f"✅ Payment request WhatsApp notification sent to {buyer_phone}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to send payment request notification: {e}")
                 
                 return jsonify({'message': 'Order updated successfully', 'order': order}), 200
         

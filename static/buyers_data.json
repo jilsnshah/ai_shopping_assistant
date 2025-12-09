@@ -6,19 +6,21 @@
       "created_at": "2025-11-23T00:00:00",
       "orders": [
         {
-          "order_id": 1,
+          "id": 1,
           "seller_id": 1,
           "product_id": 1,
           "product_name": "Fresh Red Apples",
           "quantity": 2,
           "unit_price": 4.99,
-          "total_amount": 9.98,
+          "amount": 9.98,
+          "buyer_name": "Sample Buyer",
+          "buyer_phone": "7801833884",
           "delivery_address": "123 Sample St, City",
           "delivery_lat": 23.0225,
           "delivery_lng": 72.5714,
           "payment_status": "Pending",
           "order_status": "Received",
-          "order_date": "2025-11-23T00:00:00"
+          "created_at": "2025-11-23T00:00:00"
         }
       ]
     }

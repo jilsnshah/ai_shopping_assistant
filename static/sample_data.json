@@ -44,6 +44,9 @@
       "seller_id": 1,
       "product_id": 1,
       "product_name": "Fresh Red Apples",
+      "quantity": 1,
+      "unit_price": 4.99,
+      "amount": 4.99,
       "buyer_name": "Michael Chen",
       "buyer_phone": "7801833884",
       "delivery_address": "456 Main Street, Springfield",
@@ -51,7 +54,6 @@
       "delivery_lng": 72.5714,
       "payment_status": "Verified",
       "order_status": "Received",
-      "amount": 4.99,
       "created_at": "2025-11-17T11:00:00"
     },
     {
@@ -59,6 +61,9 @@
       "seller_id": 1,
       "product_id": 2,
       "product_name": "Juicy Oranges",
+      "quantity": 1,
+      "unit_price": 3.99,
+      "amount": 3.99,
       "buyer_name": "Emily Rodriguez",
       "buyer_phone": "7801833884",
       "delivery_address": "789 Oak Avenue, Riverside",
@@ -66,7 +71,6 @@
       "delivery_lng": 72.5800,
       "payment_status": "Verified",
       "order_status": "Received",
-      "amount": 3.99,
       "created_at": "2025-11-17T11:30:00"
     },
     {
@@ -74,6 +78,9 @@
       "seller_id": 1,
       "product_id": 1,
       "product_name": "Fresh Red Apples",
+      "quantity": 1,
+      "unit_price": 4.99,
+      "amount": 4.99,
       "buyer_name": "David Thompson",
       "buyer_phone": "7801833884",
       "delivery_address": "321 Pine Road, Hilltown",
@@ -81,7 +88,6 @@
       "delivery_lng": 72.5900,
       "payment_status": "Verified",
       "order_status": "To Deliver",
-      "amount": 4.99,
       "created_at": "2025-11-17T12:00:00"
     },
     {
