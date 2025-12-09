@@ -1,7 +1,7 @@
 {
   "buyers": {
-    "7801833884": {
-      "phone_number": "7801833884",
+    "917801833884": {
+      "phone_number": "917801833884",
       "name": "Sample Buyer",
       "created_at": "2025-11-23T00:00:00",
       "orders": [
@@ -14,7 +14,7 @@
           "unit_price": 4.99,
           "amount": 9.98,
           "buyer_name": "Sample Buyer",
-          "buyer_phone": "7801833884",
+          "buyer_phone": "917801833884",
           "delivery_address": "123 Sample St, City",
           "delivery_lat": 23.0225,
           "delivery_lng": 72.5714,
