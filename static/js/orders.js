@@ -233,25 +233,26 @@ async function updateOrderStatus(e) {
     };
     
     try {
-        const response = await fetch('/static/sample_data.json');
-        const data = await response.json();
+        const response = await fetch(`/api/orders/${orderId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_status: orderStatusMap[newOrderStatus] || newOrderStatus,
+                payment_status: paymentStatusMap[newPaymentStatus] || newPaymentStatus
+            })
+        });
         
-        // Find and update the order
-        const orderIndex = data.orders.findIndex(o => o.id === orderId);
-        if (orderIndex !== -1) {
-            data.orders[orderIndex].order_status = orderStatusMap[newOrderStatus] || newOrderStatus;
-            data.orders[orderIndex].payment_status = paymentStatusMap[newPaymentStatus] || newPaymentStatus;
-            
+        const result = await response.json();
+        
+        if (response.ok) {
             showNotification('Order status updated successfully!', 'success');
             closeStatusModal();
             
             // Reload orders
             await loadOrders();
             filterOrders(currentFilter);
-            
-            console.log('Updated order data:', data);
         } else {
-            showNotification('Order not found', 'error');
+            showNotification(result.error || 'Error updating order status', 'error');
         }
         
     } catch (error) {

@@ -125,33 +125,35 @@ async function saveProduct(e) {
     };
     
     try {
-        const response = await fetch('/static/sample_data.json');
-        const data = await response.json();
+        let response;
         
         if (editingProductId) {
             // Update existing product
-            const index = data.products.findIndex(p => p.id === editingProductId);
-            if (index !== -1) {
-                data.products[index] = { ...data.products[index], ...productData };
-                showNotification('Product updated successfully!', 'success');
-            }
+            response = await fetch(`/api/products/${editingProductId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            });
         } else {
-            // Add new product
-            const newId = Math.max(...data.products.map(p => p.id), 0) + 1;
-            productData.id = newId;
-            productData.created_at = new Date().toISOString();
-            data.products.push(productData);
-            showNotification('Product added successfully!', 'success');
+            // Create new product
+            response = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            });
         }
         
-        // Update local state and UI
-        currentProducts = data.products;
-        displayProducts(currentProducts);
-        updateProductStats();
-        closeProductModal();
+        const result = await response.json();
         
-        // Note: To actually save, implement backend endpoint
-        console.log('Products data to save:', data);
+        if (response.ok) {
+            showNotification(editingProductId ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+            closeProductModal();
+            
+            // Reload products
+            await loadProducts();
+        } else {
+            showNotification(result.error || 'Error saving product', 'error');
+        }
         
     } catch (error) {
         console.error('Error saving product:', error);
@@ -173,18 +175,21 @@ function deleteProduct(productId) {
 // Confirm Delete
 async function confirmDelete() {
     try {
-        const response = await fetch('/static/sample_data.json');
-        const data = await response.json();
+        const response = await fetch(`/api/products/${editingProductId}`, {
+            method: 'DELETE'
+        });
         
-        data.products = data.products.filter(p => p.id !== editingProductId);
+        const result = await response.json();
         
-        currentProducts = data.products;
-        displayProducts(currentProducts);
-        updateProductStats();
-        closeDeleteModal();
-        showNotification('Product deleted successfully!', 'success');
-        
-        console.log('Products data after delete:', data);
+        if (response.ok) {
+            showNotification('Product deleted successfully!', 'success');
+            closeDeleteModal();
+            
+            // Reload products
+            await loadProducts();
+        } else {
+            showNotification(result.error || 'Error deleting product', 'error');
+        }
         
     } catch (error) {
         console.error('Error deleting product:', error);

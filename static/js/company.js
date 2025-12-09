@@ -112,31 +112,25 @@ async function saveCompanyInfo(e) {
         state: document.getElementById('state').value,
         pincode: document.getElementById('pincode').value,
         country: document.getElementById('country').value,
-        description: document.getElementById('description').value
+        description: document.getElementById('description').value,
+        seller_id: 1  // Default seller ID
     };
     
     try {
-        // Load existing data
-        const response = await fetch('/static/sample_data.json');
-        const data = await response.json();
+        const response = await fetch('/api/company', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(companyData)
+        });
         
-        // Update company info
-        data.company_info = companyData;
+        const result = await response.json();
         
-        // In a real application, this would be a POST request to the server
-        // For now, we'll just show a success message and update the display
-        console.log('Company data to save:', data);
-        
-        showNotification('Company information saved successfully!', 'success');
-        displayCompanyInfo(companyData);
-        
-        // Note: To actually save, you need to implement a backend endpoint
-        // Example:
-        // await fetch('/api/company', {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify(data)
-        // });
+        if (response.ok) {
+            showNotification('Company information saved successfully!', 'success');
+            displayCompanyInfo(companyData);
+        } else {
+            showNotification(result.error || 'Error saving company information', 'error');
+        }
         
     } catch (error) {
         console.error('Error saving company info:', error);

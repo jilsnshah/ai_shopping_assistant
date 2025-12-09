@@ -352,5 +352,146 @@ def activate_ai():
     }), 200
 
 
+# ===== NEW API ENDPOINTS FOR FRONTEND =====
+
+@app.route('/api/company', methods=['GET', 'POST'])
+def company_info():
+    """Get or update company information"""
+    try:
+        if request.method == 'GET':
+            seller_id = int(request.args.get('seller_id', 1))
+            seller = next((s for s in sellers if s['id'] == seller_id), None)
+            
+            if seller:
+                return jsonify({
+                    'name': seller['company_name'],
+                    'email': seller['email'],
+                    'phone': seller['phone'],
+                    'address': seller['address'],
+                    'description': seller['company_description']
+                }), 200
+            else:
+                return jsonify({'error': 'Seller not found'}), 404
+        
+        elif request.method == 'POST':
+            data = request.get_json()
+            seller_id = int(data.get('seller_id', 1))
+            
+            # Find and update seller
+            for seller in sellers:
+                if seller['id'] == seller_id:
+                    seller['company_name'] = data.get('name', seller['company_name'])
+                    seller['email'] = data.get('email', seller['email'])
+                    seller['phone'] = data.get('phone', seller['phone'])
+                    seller['address'] = data.get('address', seller['address'])
+                    seller['company_description'] = data.get('description', seller['company_description'])
+                    
+                    # Save to JSON
+                    save_data_to_json()
+                    
+                    return jsonify({'message': 'Company information updated successfully'}), 200
+            
+            return jsonify({'error': 'Seller not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products/<int:product_id>', methods=['PUT', 'DELETE'])
+def update_delete_product(product_id):
+    """Update or delete a product"""
+    try:
+        if request.method == 'PUT':
+            data = request.get_json()
+            
+            # Find and update product
+            for product in products:
+                if product['id'] == product_id:
+                    product['title'] = data.get('title', product['title'])
+                    product['description'] = data.get('description', product['description'])
+                    product['price'] = float(data.get('price', product['price']))
+                    product['category'] = data.get('category', product.get('category', ''))
+                    product['stock_quantity'] = int(data.get('stock_quantity', product.get('stock_quantity', 0)))
+                    product['image_url'] = data.get('image_url', product.get('image_url', ''))
+                    
+                    # Save to JSON
+                    save_data_to_json()
+                    
+                    return jsonify({'message': 'Product updated successfully', 'product': product}), 200
+            
+            return jsonify({'error': 'Product not found'}), 404
+        
+        elif request.method == 'DELETE':
+            global products
+            
+            # Find and remove product
+            products = [p for p in products if p['id'] != product_id]
+            
+            # Save to JSON
+            save_data_to_json()
+            
+            return jsonify({'message': 'Product deleted successfully'}), 200
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products', methods=['POST'])
+def create_product():
+    """Create a new product"""
+    try:
+        data = request.get_json()
+        
+        # Generate new product ID
+        new_id = max([p['id'] for p in products], default=0) + 1
+        
+        product = {
+            'id': new_id,
+            'seller_id': int(data.get('seller_id', 1)),
+            'title': data['title'],
+            'description': data.get('description', ''),
+            'price': float(data['price']),
+            'category': data.get('category', ''),
+            'stock_quantity': int(data.get('stock_quantity', 0)),
+            'image_url': data.get('image_url', ''),
+            'created_at': datetime.now().isoformat()
+        }
+        
+        products.append(product)
+        
+        # Save to JSON
+        save_data_to_json()
+        
+        return jsonify({'message': 'Product created successfully', 'product': product}), 201
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/orders/<int:order_id>', methods=['PUT'])
+def update_order(order_id):
+    """Update order status"""
+    try:
+        data = request.get_json()
+        
+        # Find and update order
+        for order in orders:
+            if order['id'] == order_id:
+                if 'order_status' in data:
+                    order['order_status'] = data['order_status']
+                if 'payment_status' in data:
+                    order['payment_status'] = data['payment_status']
+                
+                # Save to JSON
+                save_data_to_json()
+                
+                return jsonify({'message': 'Order updated successfully', 'order': order}), 200
+        
+        return jsonify({'error': 'Order not found'}), 404
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
