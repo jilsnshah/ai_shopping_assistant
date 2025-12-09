@@ -212,7 +212,7 @@ def create_buyer_profile(phone_number: str, name: str):
         }
 
 
-def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str, buyer_phone: str = None):
+def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str, delivery_lat: float, delivery_lng: float, buyer_phone: str = None):
     """
     Place an order for a product and save it to both seller and buyer databases.
     
@@ -221,6 +221,8 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
         quantity (int): Number of items to order
         buyer_name (str): Name of the buyer
         delivery_address (str): Delivery address for the order
+        delivery_lat (float): Latitude of delivery location
+        delivery_lng (float): Longitude of delivery location
         buyer_phone (str): Phone number of the buyer (for WhatsApp orders)
         
     Returns:
@@ -257,10 +259,6 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     
     # Create timestamp
     timestamp = datetime.now().isoformat()
-    
-    # Default coordinates (Ahmedabad, Gujarat)
-    delivery_lat = 23.0225
-    delivery_lng = 72.5714
     
     # Create unified order structure
     # This structure is IDENTICAL for both buyer and seller databases
@@ -451,13 +449,15 @@ def calculate_price(product_id: str, quantity: str) -> str:
 
 
 @tool
-def create_order(product_id: str, quantity: str, delivery_address: str) -> str:
+def create_order(product_id: str, quantity: str, delivery_address: str, delivery_latitude: str, delivery_longitude: str) -> str:
     """Place an order for a product. Buyer name is automatically retrieved from profile.
     
     Args:
         product_id: The ID of the product to order
         quantity: How many units to order
         delivery_address: Complete delivery address
+        delivery_latitude: Latitude of delivery location (e.g., "23.0225")
+        delivery_longitude: Longitude of delivery location (e.g., "72.5714")
     """
     try:
         phone_number = current_user.get("phone_number")
@@ -469,8 +469,14 @@ def create_order(product_id: str, quantity: str, delivery_address: str) -> str:
         
         buyer_name = buyers_data['buyers'][phone_number].get('name')
         
-        result = place_order(int(product_id), int(quantity), buyer_name, delivery_address, phone_number)
+        # Convert lat/lng to float
+        lat = float(delivery_latitude)
+        lng = float(delivery_longitude)
+        
+        result = place_order(int(product_id), int(quantity), buyer_name, delivery_address, lat, lng, phone_number)
         return str(result)
+    except ValueError as e:
+        return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."
     except Exception as e:
         return f"Error: {str(e)}"
 
