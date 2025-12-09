@@ -394,6 +394,11 @@ body {
     color: #065f46;
 }
 
+.status-requested {
+    background-color: #fde68a;
+    color: #78350f;
+}
+
 .status-failed {
     background-color: #fee2e2;
     color: #991b1b;

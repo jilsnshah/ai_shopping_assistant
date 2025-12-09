@@ -17,7 +17,7 @@
           "delivery_lat": 23.0225,
           "delivery_lng": 72.5714,
           "payment_status": "Pending",
-          "status": "Received",
+          "order_status": "Received",
           "order_date": "2025-11-23T00:00:00"
         }
       ]

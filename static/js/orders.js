@@ -102,6 +102,7 @@ function getStatusClass(status) {
         'Delivered': 'delivered',
         'Cancelled': 'cancelled',
         'Pending': 'pending',
+        'Requested': 'requested',
         'Completed': 'completed'
     };
     return statusMap[status] || 'pending';

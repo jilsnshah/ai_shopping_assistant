@@ -258,6 +258,10 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     # Create timestamp
     timestamp = datetime.now().isoformat()
     
+    # Default coordinates (Ahmedabad, Gujarat)
+    delivery_lat = 23.0225
+    delivery_lng = 72.5714
+    
     # Create new order for buyer
     order = {
         "order_id": order_id,
@@ -268,8 +272,10 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
         "unit_price": product.get('price'),
         "total_amount": total_amount,
         "delivery_address": delivery_address,
+        "delivery_lat": delivery_lat,
+        "delivery_lng": delivery_lng,
         "payment_status": "Pending",
-        "status": "Received",
+        "order_status": "Received",
         "order_date": timestamp
     }
     
@@ -281,7 +287,10 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
         "product_name": product.get('title'),
         "quantity": quantity,
         "buyer_name": buyer_name,
+        "buyer_phone": buyer_phone if buyer_phone else "",
         "delivery_address": delivery_address,
+        "delivery_lat": delivery_lat,
+        "delivery_lng": delivery_lng,
         "unit_price": product.get('price'),
         "amount": total_amount,
         "payment_status": "Pending",
@@ -510,7 +519,8 @@ def get_my_orders(query: str) -> str:
         orders_summary += f"- Product: {order.get('product_name')}\n"
         orders_summary += f"- Quantity: {order.get('quantity')}\n"
         orders_summary += f"- Total: ₹{order.get('total_amount')}\n"
-        orders_summary += f"- Status: {order.get('status', 'Pending')}\n"
+        orders_summary += f"- Status: {order.get('order_status', 'Pending')}\n"
+        orders_summary += f"- Payment: {order.get('payment_status', 'Pending')}\n"
         orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"
     
     return orders_summary
