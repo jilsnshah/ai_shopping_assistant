@@ -400,6 +400,8 @@ def company_info():
 @app.route('/api/products/<int:product_id>', methods=['PUT', 'DELETE'])
 def update_delete_product(product_id):
     """Update or delete a product"""
+    global products
+    
     try:
         if request.method == 'PUT':
             data = request.get_json()
@@ -422,8 +424,6 @@ def update_delete_product(product_id):
             return jsonify({'error': 'Product not found'}), 404
         
         elif request.method == 'DELETE':
-            global products
-            
             # Find and remove product
             products = [p for p in products if p['id'] != product_id]
             

@@ -186,11 +186,13 @@ window.onclick = function(event) {
 function getStatusClass(status) {
     const statusMap = {
         'Received': 'pending',
-        'To Deliver': 'confirmed',
+        'Confirmed': 'confirmed',
+        'Ready to Deliver': 'confirmed',
+        'Shipped': 'shipped',
         'Delivered': 'delivered',
         'Cancelled': 'cancelled',
         'Pending': 'pending',
-        'Verified': 'completed'
+        'Completed': 'completed'
     };
     return statusMap[status] || 'pending';
 }

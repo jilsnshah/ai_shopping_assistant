@@ -127,8 +127,8 @@
       "delivery_address": "Ahmedabad",
       "unit_price": 3.99,
       "amount": 23.94,
-      "payment_status": "Verified",
-      "order_status": "Received",
+      "payment_status": "Pending",
+      "order_status": "To Deliver",
       "created_at": "2025-11-17T23:49:59.086335"
     },
     {
@@ -142,7 +142,7 @@
       "unit_price": 2.0,
       "amount": 8.0,
       "payment_status": "Pending",
-      "order_status": "Received",
+      "order_status": "To Deliver",
       "created_at": "2025-11-17T23:52:03.547067"
     },
     {
@@ -156,7 +156,7 @@
       "unit_price": 2.0,
       "amount": 20.0,
       "payment_status": "Pending",
-      "order_status": "Received",
+      "order_status": "To Deliver",
       "created_at": "2025-11-23T02:21:53.508376"
     }
   ]

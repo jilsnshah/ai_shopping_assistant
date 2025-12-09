@@ -72,31 +72,21 @@ function filterOrders(status) {
         }
     });
     
-    // Filter and display - map frontend status to backend status
-    let filteredOrders;
-    if (status === 'all') {
-        filteredOrders = currentOrders;
-    } else {
-        const statusMap = {
-            'pending': 'Received',
-            'confirmed': 'To Deliver',
-            'delivered': 'Delivered',
-            'cancelled': 'Cancelled'
-        };
-        const backendStatus = statusMap[status] || status;
-        filteredOrders = currentOrders.filter(order => order.order_status === backendStatus);
-    }
+    // Filter and display
+    const filteredOrders = status === 'all' 
+        ? currentOrders 
+        : currentOrders.filter(order => order.order_status === status);
     
     displayOrders(filteredOrders);
 }
 
 // Update Order Stats
 function updateOrderStats() {
-    const pendingCount = currentOrders.filter(o => o.order_status === 'Received').length;
-    const confirmedCount = currentOrders.filter(o => o.order_status === 'To Deliver').length;
+    const receivedCount = currentOrders.filter(o => o.order_status === 'Received').length;
+    const confirmedCount = currentOrders.filter(o => o.order_status === 'Confirmed').length;
     const deliveredCount = currentOrders.filter(o => o.order_status === 'Delivered').length;
     
-    document.getElementById('pending-count').textContent = pendingCount;
+    document.getElementById('pending-count').textContent = receivedCount;
     document.getElementById('confirmed-count').textContent = confirmedCount;
     document.getElementById('delivered-count').textContent = deliveredCount;
 }
@@ -105,11 +95,13 @@ function updateOrderStats() {
 function getStatusClass(status) {
     const statusMap = {
         'Received': 'pending',
-        'To Deliver': 'confirmed',
+        'Confirmed': 'confirmed',
+        'Ready to Deliver': 'confirmed',
+        'Shipped': 'shipped',
         'Delivered': 'delivered',
         'Cancelled': 'cancelled',
         'Pending': 'pending',
-        'Verified': 'completed'
+        'Completed': 'completed'
     };
     return statusMap[status] || 'pending';
 }
@@ -184,22 +176,8 @@ function openStatusModal(orderId) {
     if (!order) return;
     
     document.getElementById('status-order-id').value = orderId;
-    
-    // Map backend status to frontend select values
-    const statusMap = {
-        'Received': 'pending',
-        'To Deliver': 'confirmed',
-        'Delivered': 'delivered',
-        'Cancelled': 'cancelled'
-    };
-    document.getElementById('order-status').value = statusMap[order.order_status] || 'pending';
-    
-    const paymentMap = {
-        'Pending': 'pending',
-        'Verified': 'completed',
-        'Failed': 'failed'
-    };
-    document.getElementById('payment-status').value = paymentMap[order.payment_status] || 'pending';
+    document.getElementById('order-status').value = order.order_status || 'Received';
+    document.getElementById('payment-status').value = order.payment_status || 'Pending';
     
     document.getElementById('status-modal').classList.add('active');
 }
@@ -217,28 +195,13 @@ async function updateOrderStatus(e) {
     const newOrderStatus = document.getElementById('order-status').value;
     const newPaymentStatus = document.getElementById('payment-status').value;
     
-    // Map frontend select values to backend status
-    const orderStatusMap = {
-        'pending': 'Received',
-        'confirmed': 'To Deliver',
-        'shipped': 'To Deliver',
-        'delivered': 'Delivered',
-        'cancelled': 'Cancelled'
-    };
-    
-    const paymentStatusMap = {
-        'pending': 'Pending',
-        'completed': 'Verified',
-        'failed': 'Failed'
-    };
-    
     try {
         const response = await fetch(`/api/orders/${orderId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                order_status: orderStatusMap[newOrderStatus] || newOrderStatus,
-                payment_status: paymentStatusMap[newPaymentStatus] || newPaymentStatus
+                order_status: newOrderStatus,
+                payment_status: newPaymentStatus
             })
         });
         
