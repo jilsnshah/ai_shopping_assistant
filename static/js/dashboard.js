@@ -11,27 +11,21 @@ async function loadDashboardStats() {
         const response = await fetch('/static/sample_data.json');
         const data = await response.json();
         
-        // Load buyers data
-        const buyersResponse = await fetch('/static/buyers_data.json');
-        const buyersData = await buyersResponse.json();
-        
         // Calculate stats
         const totalProducts = data.products.length;
-        const totalCustomers = Object.keys(buyersData.buyers || {}).length;
+        const totalOrders = data.orders.length;
         
-        let totalOrders = 0;
+        // Calculate revenue from orders (exclude cancelled if status exists)
         let totalRevenue = 0;
-        
-        Object.values(buyersData.buyers || {}).forEach(buyer => {
-            if (buyer.orders) {
-                totalOrders += buyer.orders.length;
-                buyer.orders.forEach(order => {
-                    if (order.status !== 'cancelled') {
-                        totalRevenue += order.total_amount || 0;
-                    }
-                });
+        data.orders.forEach(order => {
+            if (order.order_status !== 'Cancelled') {
+                totalRevenue += order.amount || 0;
             }
         });
+        
+        // Get unique customers from orders
+        const uniqueCustomers = new Set(data.orders.map(o => o.buyer_name));
+        const totalCustomers = uniqueCustomers.size;
         
         // Update UI
         document.getElementById('total-orders').textContent = totalOrders;
@@ -47,27 +41,14 @@ async function loadDashboardStats() {
 // Load Recent Orders
 async function loadRecentOrders() {
     try {
-        const response = await fetch('/static/buyers_data.json');
+        const response = await fetch('/static/sample_data.json');
         const data = await response.json();
         
         const tableBody = document.getElementById('recent-orders-table');
-        const allOrders = [];
-        
-        // Collect all orders
-        Object.entries(data.buyers || {}).forEach(([phone, buyer]) => {
-            if (buyer.orders) {
-                buyer.orders.forEach(order => {
-                    allOrders.push({
-                        ...order,
-                        customer_name: buyer.name,
-                        customer_phone: phone
-                    });
-                });
-            }
-        });
+        const allOrders = data.orders || [];
         
         // Sort by date (most recent first)
-        allOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+        allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         
         // Show only 5 most recent
         const recentOrders = allOrders.slice(0, 5);
@@ -79,12 +60,12 @@ async function loadRecentOrders() {
         
         tableBody.innerHTML = recentOrders.map(order => `
             <tr>
-                <td>#${order.order_id}</td>
-                <td>${order.customer_name}</td>
-                <td>${order.customer_phone}</td>
-                <td>₹${order.total_amount.toFixed(2)}</td>
-                <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-                <td>${formatDate(order.order_date)}</td>
+                <td>#${order.id}</td>
+                <td>${order.buyer_name}</td>
+                <td>${order.delivery_address ? order.delivery_address.substring(0, 20) + '...' : 'N/A'}</td>
+                <td>₹${order.amount.toFixed(2)}</td>
+                <td><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></td>
+                <td>${formatDate(order.created_at)}</td>
             </tr>
         `).join('');
         
@@ -103,4 +84,17 @@ function formatDate(dateString) {
         month: 'short',
         day: 'numeric'
     });
+}
+
+// Get status CSS class
+function getStatusClass(status) {
+    const statusMap = {
+        'Received': 'pending',
+        'To Deliver': 'confirmed',
+        'Delivered': 'delivered',
+        'Cancelled': 'cancelled',
+        'Pending': 'pending',
+        'Verified': 'completed'
+    };
+    return statusMap[status] || 'pending';
 }

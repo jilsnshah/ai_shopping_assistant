@@ -8,35 +8,49 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Customers
 async function loadCustomers() {
     try {
-        const response = await fetch('/static/buyers_data.json');
+        const response = await fetch('/static/sample_data.json');
         const data = await response.json();
         
-        // Transform buyers data to customers array
-        currentCustomers = Object.entries(data.buyers || {}).map(([phone, buyer]) => {
-            const orders = buyer.orders || [];
-            const totalOrders = orders.length;
-            const totalSpent = orders.reduce((sum, order) => {
-                if (order.status !== 'cancelled') {
-                    return sum + (order.total_amount || 0);
-                }
-                return sum;
-            }, 0);
+        // Extract unique customers from orders
+        const customerMap = new Map();
+        
+        data.orders.forEach(order => {
+            const name = order.buyer_name;
+            const address = order.delivery_address;
             
-            // Get last order date
-            const lastOrder = orders.length > 0 
-                ? orders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date))[0].order_date
-                : null;
+            if (!customerMap.has(name)) {
+                customerMap.set(name, {
+                    name: name,
+                    phone: address, // Using address as identifier since no phone
+                    totalOrders: 0,
+                    totalSpent: 0,
+                    lastOrder: null,
+                    joinedDate: order.created_at,
+                    orders: []
+                });
+            }
             
-            return {
-                name: buyer.name,
-                phone: phone,
-                totalOrders: totalOrders,
-                totalSpent: totalSpent,
-                lastOrder: lastOrder,
-                joinedDate: buyer.created_at,
-                orders: orders
-            };
+            const customer = customerMap.get(name);
+            customer.totalOrders++;
+            
+            if (order.order_status !== 'Cancelled') {
+                customer.totalSpent += order.amount || 0;
+            }
+            
+            customer.orders.push(order);
+            
+            // Update last order date
+            if (!customer.lastOrder || new Date(order.created_at) > new Date(customer.lastOrder)) {
+                customer.lastOrder = order.created_at;
+            }
+            
+            // Update joined date (earliest order)
+            if (new Date(order.created_at) < new Date(customer.joinedDate)) {
+                customer.joinedDate = order.created_at;
+            }
         });
+        
+        currentCustomers = Array.from(customerMap.values());
         
         // Sort by total spent (highest first)
         currentCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
@@ -86,8 +100,8 @@ function updateCustomerStats() {
 }
 
 // View Customer Details
-function viewCustomer(phone) {
-    const customer = currentCustomers.find(c => c.phone === phone);
+function viewCustomer(identifier) {
+    const customer = currentCustomers.find(c => c.phone === identifier || c.name === identifier);
     if (!customer) return;
     
     const detailsDiv = document.getElementById('customer-details');
@@ -98,7 +112,7 @@ function viewCustomer(phone) {
                 <div class="info-value"><strong>${customer.name}</strong></div>
             </div>
             <div class="info-item">
-                <div class="info-label">Phone Number:</div>
+                <div class="info-label">Delivery Address:</div>
                 <div class="info-value">${customer.phone}</div>
             </div>
             <div class="info-item">
@@ -122,16 +136,16 @@ function viewCustomer(phone) {
         ${customer.orders.length > 0 ? `
         <div class="order-items">
             <h3>Order History</h3>
-            ${customer.orders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date)).map(order => `
+            ${customer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(order => `
                 <div class="order-item">
                     <div>
-                        <strong>Order #${order.order_id}</strong><br>
-                        <small>${formatDate(order.order_date)}</small><br>
-                        <span class="status-badge status-${order.status}">${order.status}</span>
+                        <strong>Order #${order.id}</strong><br>
+                        <small>${formatDate(order.created_at)}</small><br>
+                        <small>${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}</small><br>
+                        <span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span>
                     </div>
                     <div>
-                        <strong>₹${order.total_amount.toFixed(2)}</strong><br>
-                        <small>${order.items.length} item(s)</small>
+                        <strong>₹${order.amount.toFixed(2)}</strong>
                     </div>
                 </div>
             `).join('')}
@@ -166,4 +180,17 @@ window.onclick = function(event) {
     if (event.target === customerModal) {
         closeCustomerModal();
     }
+}
+
+// Get status CSS class
+function getStatusClass(status) {
+    const statusMap = {
+        'Received': 'pending',
+        'To Deliver': 'confirmed',
+        'Delivered': 'delivered',
+        'Cancelled': 'cancelled',
+        'Pending': 'pending',
+        'Verified': 'completed'
+    };
+    return statusMap[status] || 'pending';
 }

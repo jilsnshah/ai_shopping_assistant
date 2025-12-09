@@ -37,19 +37,19 @@ function displayProducts(products) {
         <div class="product-card">
             <div class="product-image">
                 ${product.image_url ? 
-                    `<img src="${product.image_url}" alt="${product.name}">` : 
+                    `<img src="${product.image_url}" alt="${product.title}">` : 
                     '<i class="fas fa-box"></i>'
                 }
             </div>
             <div class="product-info">
                 <div class="product-category">${product.category || 'Uncategorized'}</div>
-                <h3 class="product-name">${product.name}</h3>
+                <h3 class="product-name">${product.title}</h3>
                 ${product.description ? `<p class="product-description">${product.description}</p>` : ''}
                 <div class="product-details">
                     <div class="product-price">₹${parseFloat(product.price).toFixed(2)}</div>
-                    <div class="product-stock">
-                        <i class="fas fa-boxes"></i> ${product.stock_quantity || 0} in stock
-                    </div>
+                    ${product.stock_quantity !== undefined ? `<div class="product-stock">
+                        <i class="fas fa-boxes"></i> ${product.stock_quantity} in stock
+                    </div>` : ''}
                 </div>
                 <div class="product-actions">
                     <button class="btn btn-primary btn-sm" onclick="editProduct(${product.id})">
@@ -88,7 +88,7 @@ function openProductModal(productId = null) {
         if (product) {
             title.textContent = 'Edit Product';
             document.getElementById('product-id').value = product.id;
-            document.getElementById('product-name').value = product.name;
+            document.getElementById('product-name').value = product.title;
             document.getElementById('category').value = product.category || '';
             document.getElementById('price').value = product.price;
             document.getElementById('stock').value = product.stock_quantity || 0;
@@ -115,12 +115,13 @@ async function saveProduct(e) {
     e.preventDefault();
     
     const productData = {
-        name: document.getElementById('product-name').value,
+        title: document.getElementById('product-name').value,
         category: document.getElementById('category').value,
         price: parseFloat(document.getElementById('price').value),
         stock_quantity: parseInt(document.getElementById('stock').value),
         description: document.getElementById('description').value,
-        image_url: document.getElementById('image-url').value
+        image_url: document.getElementById('image-url').value,
+        seller_id: 1  // Default seller ID
     };
     
     try {
@@ -138,6 +139,7 @@ async function saveProduct(e) {
             // Add new product
             const newId = Math.max(...data.products.map(p => p.id), 0) + 1;
             productData.id = newId;
+            productData.created_at = new Date().toISOString();
             data.products.push(productData);
             showNotification('Product added successfully!', 'success');
         }

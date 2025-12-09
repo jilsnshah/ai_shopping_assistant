@@ -11,25 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Orders
 async function loadOrders() {
     try {
-        const response = await fetch('/static/buyers_data.json');
+        const response = await fetch('/static/sample_data.json');
         const data = await response.json();
         
-        // Collect all orders from buyers
-        currentOrders = [];
-        Object.entries(data.buyers || {}).forEach(([phone, buyer]) => {
-            if (buyer.orders) {
-                buyer.orders.forEach(order => {
-                    currentOrders.push({
-                        ...order,
-                        customer_name: buyer.name,
-                        customer_phone: phone
-                    });
-                });
-            }
-        });
+        // Orders are flat in sample_data.json
+        currentOrders = data.orders || [];
         
         // Sort by date (most recent first)
-        currentOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+        currentOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         
         displayOrders(currentOrders);
         updateOrderStats();
@@ -51,19 +40,19 @@ function displayOrders(orders) {
     
     tableBody.innerHTML = orders.map(order => `
         <tr>
-            <td>#${order.order_id}</td>
-            <td>${order.customer_name}</td>
-            <td>${order.customer_phone}</td>
-            <td>${getOrderItemsSummary(order.items)}</td>
-            <td><strong>₹${order.total_amount.toFixed(2)}</strong></td>
-            <td><span class="status-badge status-${order.payment_status || 'pending'}">${order.payment_status || 'pending'}</span></td>
-            <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-            <td>${formatDate(order.order_date)}</td>
+            <td>#${order.id}</td>
+            <td>${order.buyer_name}</td>
+            <td>${order.delivery_address ? order.delivery_address.substring(0, 15) + '...' : 'N/A'}</td>
+            <td>${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}</td>
+            <td><strong>₹${order.amount.toFixed(2)}</strong></td>
+            <td><span class="status-badge status-${getStatusClass(order.payment_status)}">${order.payment_status}</span></td>
+            <td><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></td>
+            <td>${formatDate(order.created_at)}</td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="viewOrder('${order.order_id}')">
+                <button class="btn btn-primary btn-sm" onclick="viewOrder(${order.id})">
                     <i class="fas fa-eye"></i> View
                 </button>
-                <button class="btn btn-success btn-sm" onclick="openStatusModal('${order.order_id}')">
+                <button class="btn btn-success btn-sm" onclick="openStatusModal(${order.id})">
                     <i class="fas fa-edit"></i> Update
                 </button>
             </td>
@@ -83,39 +72,51 @@ function filterOrders(status) {
         }
     });
     
-    // Filter and display
-    const filteredOrders = status === 'all' 
-        ? currentOrders 
-        : currentOrders.filter(order => order.status === status);
+    // Filter and display - map frontend status to backend status
+    let filteredOrders;
+    if (status === 'all') {
+        filteredOrders = currentOrders;
+    } else {
+        const statusMap = {
+            'pending': 'Received',
+            'confirmed': 'To Deliver',
+            'delivered': 'Delivered',
+            'cancelled': 'Cancelled'
+        };
+        const backendStatus = statusMap[status] || status;
+        filteredOrders = currentOrders.filter(order => order.order_status === backendStatus);
+    }
     
     displayOrders(filteredOrders);
 }
 
 // Update Order Stats
 function updateOrderStats() {
-    const pendingCount = currentOrders.filter(o => o.status === 'pending').length;
-    const confirmedCount = currentOrders.filter(o => o.status === 'confirmed').length;
-    const deliveredCount = currentOrders.filter(o => o.status === 'delivered').length;
+    const pendingCount = currentOrders.filter(o => o.order_status === 'Received').length;
+    const confirmedCount = currentOrders.filter(o => o.order_status === 'To Deliver').length;
+    const deliveredCount = currentOrders.filter(o => o.order_status === 'Delivered').length;
     
     document.getElementById('pending-count').textContent = pendingCount;
     document.getElementById('confirmed-count').textContent = confirmedCount;
     document.getElementById('delivered-count').textContent = deliveredCount;
 }
 
-// Get Order Items Summary
-function getOrderItemsSummary(items) {
-    if (!items || items.length === 0) return 'No items';
-    
-    if (items.length === 1) {
-        return `${items[0].product_name} (${items[0].quantity})`;
-    }
-    
-    return `${items[0].product_name} +${items.length - 1} more`;
+// Get status CSS class
+function getStatusClass(status) {
+    const statusMap = {
+        'Received': 'pending',
+        'To Deliver': 'confirmed',
+        'Delivered': 'delivered',
+        'Cancelled': 'cancelled',
+        'Pending': 'pending',
+        'Verified': 'completed'
+    };
+    return statusMap[status] || 'pending';
 }
 
 // View Order Details
 async function viewOrder(orderId) {
-    const order = currentOrders.find(o => o.order_id === orderId);
+    const order = currentOrders.find(o => o.id === orderId);
     if (!order) return;
     
     const detailsDiv = document.getElementById('order-details');
@@ -123,45 +124,40 @@ async function viewOrder(orderId) {
         <div class="info-display">
             <div class="info-item">
                 <div class="info-label">Order ID:</div>
-                <div class="info-value">#${order.order_id}</div>
+                <div class="info-value">#${order.id}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Customer:</div>
-                <div class="info-value">${order.customer_name}</div>
+                <div class="info-value">${order.buyer_name}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Phone:</div>
-                <div class="info-value">${order.customer_phone}</div>
+                <div class="info-label">Product:</div>
+                <div class="info-value">${order.product_name}</div>
             </div>
+            ${order.quantity ? `<div class="info-item">
+                <div class="info-label">Quantity:</div>
+                <div class="info-value">${order.quantity}</div>
+            </div>` : ''}
+            ${order.unit_price ? `<div class="info-item">
+                <div class="info-label">Unit Price:</div>
+                <div class="info-value">₹${order.unit_price.toFixed(2)}</div>
+            </div>` : ''}
             <div class="info-item">
                 <div class="info-label">Order Status:</div>
-                <div class="info-value"><span class="status-badge status-${order.status}">${order.status}</span></div>
+                <div class="info-value"><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></div>
             </div>
             <div class="info-item">
                 <div class="info-label">Payment Status:</div>
-                <div class="info-value"><span class="status-badge status-${order.payment_status || 'pending'}">${order.payment_status || 'pending'}</span></div>
+                <div class="info-value"><span class="status-badge status-${getStatusClass(order.payment_status)}">${order.payment_status}</span></div>
             </div>
             <div class="info-item">
                 <div class="info-label">Order Date:</div>
-                <div class="info-value">${formatDate(order.order_date)}</div>
+                <div class="info-value">${formatDate(order.created_at)}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Total Amount:</div>
-                <div class="info-value"><strong>₹${order.total_amount.toFixed(2)}</strong></div>
+                <div class="info-value"><strong>₹${order.amount.toFixed(2)}</strong></div>
             </div>
-        </div>
-        
-        <div class="order-items">
-            <h3>Order Items</h3>
-            ${order.items.map(item => `
-                <div class="order-item">
-                    <div>
-                        <strong>${item.product_name}</strong><br>
-                        <small>Quantity: ${item.quantity} × ₹${item.price.toFixed(2)}</small>
-                    </div>
-                    <div><strong>₹${(item.quantity * item.price).toFixed(2)}</strong></div>
-                </div>
-            `).join('')}
         </div>
         
         ${order.delivery_address ? `
@@ -184,12 +180,26 @@ function closeOrderModal() {
 
 // Open Status Modal
 function openStatusModal(orderId) {
-    const order = currentOrders.find(o => o.order_id === orderId);
+    const order = currentOrders.find(o => o.id === orderId);
     if (!order) return;
     
     document.getElementById('status-order-id').value = orderId;
-    document.getElementById('order-status').value = order.status;
-    document.getElementById('payment-status').value = order.payment_status || 'pending';
+    
+    // Map backend status to frontend select values
+    const statusMap = {
+        'Received': 'pending',
+        'To Deliver': 'confirmed',
+        'Delivered': 'delivered',
+        'Cancelled': 'cancelled'
+    };
+    document.getElementById('order-status').value = statusMap[order.order_status] || 'pending';
+    
+    const paymentMap = {
+        'Pending': 'pending',
+        'Verified': 'completed',
+        'Failed': 'failed'
+    };
+    document.getElementById('payment-status').value = paymentMap[order.payment_status] || 'pending';
     
     document.getElementById('status-modal').classList.add('active');
 }
@@ -203,28 +213,35 @@ function closeStatusModal() {
 async function updateOrderStatus(e) {
     e.preventDefault();
     
-    const orderId = document.getElementById('status-order-id').value;
+    const orderId = parseInt(document.getElementById('status-order-id').value);
     const newOrderStatus = document.getElementById('order-status').value;
     const newPaymentStatus = document.getElementById('payment-status').value;
     
+    // Map frontend select values to backend status
+    const orderStatusMap = {
+        'pending': 'Received',
+        'confirmed': 'To Deliver',
+        'shipped': 'To Deliver',
+        'delivered': 'Delivered',
+        'cancelled': 'Cancelled'
+    };
+    
+    const paymentStatusMap = {
+        'pending': 'Pending',
+        'completed': 'Verified',
+        'failed': 'Failed'
+    };
+    
     try {
-        const response = await fetch('/static/buyers_data.json');
+        const response = await fetch('/static/sample_data.json');
         const data = await response.json();
         
         // Find and update the order
-        let updated = false;
-        Object.entries(data.buyers || {}).forEach(([phone, buyer]) => {
-            if (buyer.orders) {
-                const orderIndex = buyer.orders.findIndex(o => o.order_id === orderId);
-                if (orderIndex !== -1) {
-                    buyer.orders[orderIndex].status = newOrderStatus;
-                    buyer.orders[orderIndex].payment_status = newPaymentStatus;
-                    updated = true;
-                }
-            }
-        });
-        
-        if (updated) {
+        const orderIndex = data.orders.findIndex(o => o.id === orderId);
+        if (orderIndex !== -1) {
+            data.orders[orderIndex].order_status = orderStatusMap[newOrderStatus] || newOrderStatus;
+            data.orders[orderIndex].payment_status = paymentStatusMap[newPaymentStatus] || newPaymentStatus;
+            
             showNotification('Order status updated successfully!', 'success');
             closeStatusModal();
             
@@ -232,7 +249,7 @@ async function updateOrderStatus(e) {
             await loadOrders();
             filterOrders(currentFilter);
             
-            console.log('Updated buyers data:', data);
+            console.log('Updated order data:', data);
         } else {
             showNotification('Order not found', 'error');
         }
