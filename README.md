@@ -1,8 +1,8 @@
 # AI Shopping Assistant Platform - MVP
 
-A comprehensive AI-powered shopping assistant platform that allows sellers to register their business, add products, manage orders, and track payments with a clean web interface.
+A comprehensive AI-powered shopping assistant platform that allows sellers to register their business, add products, manage orders, and track payments with a clean web interface. Features persistent conversation memory using Google Cloud SQL.
 
-## Features
+## 🌟 Key Features
 
 ### 🏪 Business Management
 ✅ **Business Registration**: Register with company name and description  
@@ -11,24 +11,28 @@ A comprehensive AI-powered shopping assistant platform that allows sellers to re
 ✅ **Image Upload**: Support for PNG, JPG, JPEG, GIF, and WEBP images (up to 16MB)  
 
 ### 📦 Order Management
-✅ **Orders Received**: View all incoming orders with buyer details  
-✅ **Orders to Deliver**: Track orders ready for delivery  
-✅ **Order Details**: Product name, buyer name, delivery address, payment status  
+✅ **Multi-Item Orders**: Support for shopping cart with multiple products per order  
+✅ **Order Tracking**: View all incoming orders with buyer details and items  
 ✅ **Real-time Updates**: Refresh orders with a single click  
+✅ **Order History**: Complete order history with payment and delivery status  
+
+### 💬 AI Assistant
+✅ **Conversational Shopping**: Natural language interaction via WhatsApp  
+✅ **Shopping Cart**: Add multiple items, modify quantities, view cart  
+✅ **Persistent Memory**: Conversations survive app restarts (PostgreSQL/Cloud SQL)  
+✅ **Multi-tool Agent**: 11 specialized tools for browsing, ordering, and tracking  
+
+### 🗄️ Data Persistence
+✅ **Firebase Realtime Database**: Buyer/seller data, products, orders  
+✅ **PostgreSQL (Cloud SQL)**: LangGraph conversation memory  
+✅ **Automatic Fallback**: JSON file fallback if cloud services unavailable  
 
 ### 💳 Payment Management
 ✅ **UPI Integration**: Store your UPI ID for payment collection  
 ✅ **Payment Tracking**: Separate views for pending and verified payments  
 ✅ **Payment Summary**: Visual dashboard showing total verified and pending amounts  
-✅ **Manual Verification**: Mark orders as paid with one click  
 
-### 🎨 User Experience
-✅ **AJAX Form Submissions**: No page reloads - smooth user experience  
-✅ **Responsive Design**: Works on desktop, tablet, and mobile devices  
-✅ **Clean UI**: Modern card-based layout with intuitive navigation  
-✅ **AI Assistant Placeholder**: Ready-to-implement AI activation button  
-
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
 - **HTML5**: Semantic markup
@@ -37,17 +41,33 @@ A comprehensive AI-powered shopping assistant platform that allows sellers to re
 
 ### Backend
 - **Flask**: Python web framework
-- **SQLite**: Lightweight database for data persistence
-- **Werkzeug**: File upload handling
+- **Firebase Realtime Database**: Buyer/seller data storage
+- **Google Cloud SQL (PostgreSQL)**: Conversation memory persistence
+- **LangGraph + LangChain**: AI agent orchestration
+- **Gemini 2.5 Flash**: Language model for AI assistant
 
-## Project Structure
+### AI & Memory
+- **LangGraph**: Agent framework with persistent checkpointing
+- **PostgresSaver**: PostgreSQL-backed conversation memory
+- **InMemorySaver**: Fallback for development/testing
+- **Message Trimming**: Automatic context window management
+
+## 📁 Project Structure
 
 ```
 ai-shopping-assist/
-├── app.py                      # Flask application with all routes
-├── requirements.txt            # Python dependencies
+├── app.py                          # Flask application with all routes
+├── multi_agent_system.py           # LangGraph AI agent with PostgreSQL memory
+├── postgres_checkpointer.py        # PostgreSQL checkpointer configuration
+├── firebase_db.py                  # Firebase Realtime Database integration
+├── tools.py                        # 11 AI agent tools (cart, orders, products)
+├── whatsapp_msg.py                 # WhatsApp Business API integration
+├── requirements.txt                # Python dependencies
+├── .env.example                    # Environment variable template
+├── firebase-credentials.json       # Firebase service account key (gitignored)
+├── GOOGLE_CLOUD_SQL_SETUP.md      # Detailed Cloud SQL setup guide
 ├── templates/
-│   ├── base.html              # Base template with navigation
+│   ├── base.html                  # Base template with navigation
 │   ├── index.html             # Home page with registration & products
 │   ├── delivery_orders.html   # Orders management page
 │   └── payments.html          # Payments management page
@@ -57,77 +77,136 @@ ai-shopping-assist/
 │   ├── js/
 │   │   ├── script.js          # Main page JavaScript
 │   │   ├── orders.js          # Orders page JavaScript
-│   │   └── payments.js        # Payments page JavaScript
-│   └── uploads/               # Product images (auto-created)
+│   │   ├── orders.js              # Orders page JavaScript
+│   │   ├── customers.js           # Customers page JavaScript
+│   │   └── products.js            # Products page JavaScript
+│   └── uploads/                   # Product images (auto-created)
 └── data/
-    └── shopping_assistant.db  # SQLite database (auto-created)
+    └── sellers_data.json          # Seller data (backup/fallback)
 ```
 
-## Installation & Setup
+## 🚀 Installation & Setup
 
 ### Prerequisites
-- Python 3.7 or higher
-- pip (Python package manager)
+- Python 3.9 or higher
+- Google Cloud account (free tier available)
+- Firebase project (free tier available)
+- Gemini API key (free tier available)
 
-### Step 1: Install Dependencies
+### Quick Start
 
-```powershell
-pip install -r requirements.txt
-```
+1. **Clone Repository**
+   ```bash
+   git clone https://github.com/jilsnshah/ai_shopping_assistant.git
+   cd ai_shopping_assistant
+   ```
 
-### Step 2: Run the Application
+2. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```powershell
-python app.py
-```
+3. **Configure Environment Variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
 
-The application will start on `http://localhost:5000`
+4. **Set Up Firebase** (Required for buyer/seller data)
+   - Download `firebase-credentials.json` from Firebase Console
+   - Place in project root directory
 
-### Step 3: Open in Browser
+5. **Set Up Google Cloud SQL** (Required for conversation memory)
+   - Follow detailed guide: [GOOGLE_CLOUD_SQL_SETUP.md](GOOGLE_CLOUD_SQL_SETUP.md)
+   - Quick version:
+     ```bash
+     # Create instance
+     gcloud sql instances create langgraph-db \
+       --database-version=POSTGRES_15 \
+       --tier=db-f1-micro \
+       --region=us-central1
+     
+     # Create database
+     gcloud sql databases create langgraph --instance=langgraph-db
+     
+     # Get connection string and update .env
+     ```
 
-Navigate to:
-```
-http://localhost:5000
-```
+6. **Test Database Connection**
+   ```bash
+   python postgres_checkpointer.py
+   ```
 
-## Usage Guide
+7. **Run Application**
+   ```bash
+   python app.py
+   ```
 
-### 1. Register Your Business
-- Fill in the registration form with company name and description
-- Click "Register Business"
-- Your seller ID will be stored locally for future operations
+8. **Access Dashboard**
+   - Open browser: `http://localhost:5000`
+   - Admin dashboard for managing products and orders
 
-### 2. Add Products
-- Navigate to the "Add Product" section or click "Add Product" in the navigation
-- Fill in product details:
-  - Product Name (required)
-  - Description (required)
-  - Price (required, must be > 0)
-  - Image (optional, max 16MB)
-- Click "Add Product"
-- Product will appear in "My Products" section
+9. **Test WhatsApp Integration** (Optional)
+   ```bash
+   python whatsapp_msg.py
+   ```
 
-### 3. View Your Products
-- Products automatically load on the home page
-- Click "Refresh Products" to reload
-- Products display in a responsive grid with images, titles, descriptions, and prices
+## 📖 Detailed Setup Guides
 
-### 4. Manage Orders
-- Click "Orders" in the navigation menu
-- View two sections:
-  - **Orders Received**: New orders that need processing
-  - **Orders to Deliver**: Orders ready for delivery
-- Each order shows:
-  - Order ID
-  - Product name
-  - Buyer name and delivery address
-  - Payment status (Pending/Verified)
-  - Order amount
-- Click "Refresh Orders" to update the lists
+### Google Cloud SQL Setup
+See [GOOGLE_CLOUD_SQL_SETUP.md](GOOGLE_CLOUD_SQL_SETUP.md) for:
+- Step-by-step Cloud SQL instance creation
+- Database and user setup
+- IP authorization
+- Connection string configuration
+- Pricing details (free tier available!)
+- Troubleshooting guide
 
-### 5. Manage Payments
-- Click "Payments" in the navigation menu
-- **Set Up UPI ID**:
+### Firebase Setup
+1. Create project at [Firebase Console](https://console.firebase.google.com)
+2. Enable Realtime Database
+3. Download service account key (Project Settings → Service Accounts)
+4. Save as `firebase-credentials.json` in project root
+5. Update database URL in `.env`
+
+### Gemini API Setup
+1. Get API key: [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Add to `.env`: `GEMINI_API_KEY=your_key_here`
+
+## 💡 Usage Guide
+
+### 1. Admin Dashboard
+- Navigate to `http://localhost:5000`
+- **Dashboard**: Overview of orders, revenue, products
+- **Products**: Add/edit/delete products
+- **Orders**: View and update order status
+- **Customers**: View customer profiles and order history
+- **Company**: Update business information
+
+### 2. AI Shopping Assistant (WhatsApp)
+**Customer Flow:**
+1. Customer sends message via WhatsApp
+2. AI greets and offers assistance
+3. Customer browses products: "Show me your products"
+4. Customer adds to cart: "Add 2 apples"
+5. Customer adds more: "Also add 5 oranges"
+6. Customer views cart: "What's in my cart?"
+7. Customer checks out: "I want to order"
+8. AI asks for delivery address and location
+9. Order placed, cart cleared automatically
+
+**AI Agent Capabilities:**
+- Browse product catalog
+- Get product details
+- Calculate prices
+- Add items to cart
+- View/modify shopping cart
+- Place orders (multi-item)
+- Track order history
+- Update customer name
+- Persistent conversation memory
+
+### 3. Order Management
   - Enter your UPI ID (e.g., yourname@paytm)
   - Click "Save UPI ID"
 - **View Payment Summary**:

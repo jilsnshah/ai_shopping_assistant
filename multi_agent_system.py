@@ -1,6 +1,6 @@
 """
 Simple LangChain Agent for Shopping Assistant
-Uses @tool decorator and create_agent with Firebase-backed memory
+Uses @tool decorator and create_agent with PostgreSQL-backed memory (Google Cloud SQL)
 """
 
 from langchain.agents import create_agent, AgentState
@@ -8,7 +8,6 @@ from langchain.agents.middleware import before_model
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.messages import RemoveMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.runtime import Runtime
 from datetime import datetime
 from typing import Any
@@ -30,13 +29,14 @@ from tools import (
     get_my_orders
 )
 
-# Import Firebase memory functions
+# Import PostgreSQL checkpointer for persistent memory
 try:
-    from firebase_db import save_agent_memory, load_agent_memory
-    FIREBASE_MEMORY_ENABLED = True
+    from postgres_checkpointer import get_postgres_checkpointer
+    POSTGRES_MEMORY_ENABLED = True
 except ImportError:
-    print("Warning: Firebase memory module not available. Using in-memory only.")
-    FIREBASE_MEMORY_ENABLED = False
+    print("Warning: PostgreSQL checkpointer not available. Falling back to in-memory.")
+    from langgraph.checkpoint.memory import InMemorySaver
+    POSTGRES_MEMORY_ENABLED = False
 
 
 # ==================== MEMORY MANAGEMENT ====================
@@ -247,13 +247,20 @@ When a customer wants to order:
 
 Remember: You're chatting with customers via WhatsApp, so be conversational and helpful like a real store assistant! 🌟"""
 
+    # Create PostgreSQL checkpointer for persistent conversation memory
+    if POSTGRES_MEMORY_ENABLED:
+        checkpointer = get_postgres_checkpointer()
+    else:
+        from langgraph.checkpoint.memory import InMemorySaver
+        checkpointer = InMemorySaver()
+    
     # Create agent using create_agent (correct signature from docs)
     agent = create_agent(
         llm,  # model as first positional argument
         tools=tools,
         system_prompt=system_prompt,
         middleware=[trim_messages_middleware],  # Add message trimming
-        checkpointer=InMemorySaver()  # Add in-memory checkpointer for conversation state
+        checkpointer=checkpointer  # PostgreSQL or in-memory checkpointer
     )
     
     return agent
