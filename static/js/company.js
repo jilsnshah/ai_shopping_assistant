@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Company Information
 async function loadCompanyInfo() {
     try {
-        const response = await fetch('/static/sample_data.json');
+        const response = await fetch('/static/sellers_data.json');
         const data = await response.json();
         
         // Check if we have company_info or use seller info

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Customers
 async function loadCustomers() {
     try {
-        const response = await fetch('/static/sample_data.json');
+        const response = await fetch('/static/sellers_data.json');
         const data = await response.json();
         
         // Extract unique customers from orders
@@ -136,19 +136,27 @@ function viewCustomer(identifier) {
         ${customer.orders.length > 0 ? `
         <div class="order-items">
             <h3>Order History</h3>
-            ${customer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(order => `
+            ${customer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(order => {
+                const orderId = order.order_id || order.id;
+                const totalAmount = order.total_amount || order.amount;
+                const itemsDisplay = order.items && order.items.length > 0
+                    ? order.items.map(item => `${item.product_name} (x${item.quantity})`).join(', ')
+                    : order.product_name ? `${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}` : 'N/A';
+                
+                return `
                 <div class="order-item">
                     <div>
-                        <strong>Order #${order.id}</strong><br>
+                        <strong>Order #${orderId}</strong><br>
                         <small>${formatDate(order.created_at)}</small><br>
-                        <small>${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}</small><br>
+                        <small>${itemsDisplay}</small><br>
                         <span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span>
                     </div>
                     <div>
-                        <strong>₹${order.amount.toFixed(2)}</strong>
+                        <strong>₹${totalAmount.toFixed(2)}</strong>
                     </div>
                 </div>
-            `).join('')}
+                `;
+            }).join('')}
         </div>
         ` : '<p style="padding: 1.5rem; text-align: center; color: #6b7280;">No orders yet</p>'}
     `;

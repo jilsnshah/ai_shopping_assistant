@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadDashboardStats() {
     try {
         // Load sample data
-        const response = await fetch('/static/sample_data.json');
+        const response = await fetch('/static/sellers_data.json');
         const data = await response.json();
         
         // Calculate stats
@@ -41,7 +41,7 @@ async function loadDashboardStats() {
 // Load Recent Orders
 async function loadRecentOrders() {
     try {
-        const response = await fetch('/static/sample_data.json');
+        const response = await fetch('/static/sellers_data.json');
         const data = await response.json();
         
         const tableBody = document.getElementById('recent-orders-table');

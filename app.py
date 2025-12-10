@@ -15,7 +15,7 @@ orders = []
 def load_data_from_json():
     global sellers, products, orders
     
-    json_file_path = os.path.join('static', 'sample_data.json')
+    json_file_path = os.path.join('static', 'sellers_data.json')
     
     try:
         with open(json_file_path, 'r') as f:
@@ -44,7 +44,7 @@ def load_data_from_json():
 def save_data_to_json():
     global sellers, products, orders
     
-    json_file_path = os.path.join('static', 'sample_data.json')
+    json_file_path = os.path.join('static', 'sellers_data.json')
     
     try:
         data = {

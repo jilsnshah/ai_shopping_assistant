@@ -31,6 +31,10 @@ instance/
 .env
 .env.local
 
+# Firebase credentials
+firebase-credentials.json
+*firebase-credentials*.json
+
 # Data files
 data/sellers.json
 data/products.json

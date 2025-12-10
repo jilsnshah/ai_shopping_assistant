@@ -8,6 +8,23 @@ import os
 from datetime import datetime
 from langchain.tools import tool
 
+# Import Firebase database functions
+try:
+    from firebase_db import (
+        load_buyers_data,
+        save_buyers_data,
+        load_sellers_data,
+        save_sellers_data,
+        get_buyer,
+        update_buyer,
+        add_buyer_order,
+        update_buyer_cart
+    )
+    FIREBASE_ENABLED = True
+except ImportError:
+    print("Warning: Firebase module not available. Using JSON file fallback.")
+    FIREBASE_ENABLED = False
+
 
 # ==================== GLOBAL STATE ====================
 current_user = {
@@ -22,48 +39,54 @@ def set_current_user(phone_number):
 
 
 def load_sample_data():
-    """Load data from sample_data.json file (seller data)"""
-    json_file_path = os.path.join('static', 'sample_data.json')
-    
-    try:
-        with open(json_file_path, 'r') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        print(f"Error: {json_file_path} not found!")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON: {e}")
-        return None
+    """Load data from sellers database (Firebase or JSON fallback)"""
+    if FIREBASE_ENABLED:
+        return load_sellers_data()
+    else:
+        # JSON file fallback
+        json_file_path = os.path.join('static', 'sellers_data.json')
+        try:
+            with open(json_file_path, 'r') as f:
+                data = json.load(f)
+            return data
+        except FileNotFoundError:
+            print(f"Error: {json_file_path} not found!")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            return None
 
 
-def load_buyers_data():
-    """Load data from buyers_data.json file"""
-    json_file_path = os.path.join('static', 'buyers_data.json')
-    
-    try:
-        with open(json_file_path, 'r') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        print(f"Error: {json_file_path} not found!")
-        return {"buyers": {}}
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON: {e}")
-        return {"buyers": {}}
+# Load buyers data function is imported from firebase_db if available
+if not FIREBASE_ENABLED:
+    def load_buyers_data():
+        """Load data from buyers_data.json file (fallback when Firebase not available)"""
+        json_file_path = os.path.join('static', 'buyers_data.json')
+        
+        try:
+            with open(json_file_path, 'r') as f:
+                data = json.load(f)
+            return data
+        except FileNotFoundError:
+            print(f"Error: {json_file_path} not found!")
+            return {"buyers": {}}
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            return {"buyers": {}}
 
 
-def save_buyers_data(data):
-    """Save data to buyers_data.json file"""
-    json_file_path = os.path.join('static', 'buyers_data.json')
-    
-    try:
-        with open(json_file_path, 'w') as f:
-            json.dump(data, f, indent=2)
-        return True
-    except Exception as e:
-        print(f"Error saving buyers data: {e}")
-        return False
+if not FIREBASE_ENABLED:
+    def save_buyers_data(data):
+        """Save data to buyers_data.json file (fallback when Firebase not available)"""
+        json_file_path = os.path.join('static', 'buyers_data.json')
+        
+        try:
+            with open(json_file_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving buyers data: {e}")
+            return False
 
 
 def get_company_info():
@@ -195,7 +218,8 @@ def create_buyer_profile(phone_number: str, name: str):
         "phone_number": phone_number,
         "name": name,
         "created_at": datetime.now().isoformat(),
-        "orders": []
+        "orders": [],
+        "cart": []
     }
     
     # Save to file
@@ -212,29 +236,62 @@ def create_buyer_profile(phone_number: str, name: str):
         }
 
 
-def place_order(product_id: int, quantity: int, buyer_name: str, delivery_address: str, delivery_lat: float, delivery_lng: float, buyer_phone: str = None):
+def update_buyer_name(phone_number: str, new_name: str):
     """
-    Place an order for a product and save it to both seller and buyer databases.
+    Update buyer's name in their profile.
     
     Args:
-        product_id (int): The ID of the product to order
-        quantity (int): Number of items to order
-        buyer_name (str): Name of the buyer
-        delivery_address (str): Delivery address for the order
-        delivery_lat (float): Latitude of delivery location
-        delivery_lng (float): Longitude of delivery location
-        buyer_phone (str): Phone number of the buyer (for WhatsApp orders)
+        phone_number (str): The buyer's phone number
+        new_name (str): The new name to set
         
     Returns:
-        dict: Order confirmation with order details
+        dict: Success status and updated profile
     """
-    # Load seller data (products)
+    buyers_data = load_buyers_data()
+    
+    # Check if buyer profile exists
+    if phone_number not in buyers_data.get('buyers', {}):
+        return {
+            "success": False,
+            "error": "Buyer profile not found. Please create a profile first."
+        }
+    
+    # Update the name
+    buyers_data['buyers'][phone_number]['name'] = new_name
+    
+    # Save to file
+    if save_buyers_data(buyers_data):
+        return {
+            "success": True,
+            "message": f"Name successfully updated to '{new_name}'.",
+            "buyer": buyers_data['buyers'][phone_number]
+        }
+    else:
+        return {
+            "success": False,
+            "error": "Failed to update buyer name"
+        }
+
+
+def add_to_cart(phone_number: str, product_id: int, quantity: int):
+    """
+    Add a product to buyer's cart or update quantity if already exists.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        product_id (int): Product ID to add
+        quantity (int): Quantity to add
+        
+    Returns:
+        dict: Success status and cart info
+    """
+    buyers_data = load_buyers_data()
+    
+    if phone_number not in buyers_data.get('buyers', {}):
+        return {"error": "Buyer profile not found"}
+    
+    # Get product details
     seller_data = load_sample_data()
-    
-    if not seller_data:
-        return {"error": "Unable to load seller data"}
-    
-    # Find the product
     product = None
     for p in seller_data.get('products', []):
         if p.get('id') == product_id:
@@ -244,15 +301,187 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     if not product:
         return {"error": f"Product with ID {product_id} not found"}
     
-    # Validate quantity
-    if quantity <= 0:
-        return {"error": "Quantity must be greater than 0"}
+    buyer = buyers_data['buyers'][phone_number]
     
-    # Calculate total amount
-    total_amount = product.get('price', 0) * quantity
+    # Initialize cart if not exists
+    if 'cart' not in buyer:
+        buyer['cart'] = []
     
-    # Get seller_id from product
-    seller_id = product.get('seller_id', 1)
+    # Check if product already in cart
+    item_found = False
+    for item in buyer['cart']:
+        if item['product_id'] == product_id:
+            item['quantity'] += quantity
+            item['subtotal'] = item['quantity'] * item['unit_price']
+            item_found = True
+            break
+    
+    # Add new item if not found
+    if not item_found:
+        buyer['cart'].append({
+            "product_id": product_id,
+            "product_name": product.get('title'),
+            "quantity": quantity,
+            "unit_price": product.get('price'),
+            "subtotal": quantity * product.get('price')
+        })
+    
+    # Save
+    if save_buyers_data(buyers_data):
+        return {
+            "success": True,
+            "message": f"Added {quantity} x {product.get('title')} to cart",
+            "cart": buyer['cart']
+        }
+    else:
+        return {"error": "Failed to save cart"}
+
+
+def get_cart(phone_number: str):
+    """
+    Get buyer's current cart.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        
+    Returns:
+        dict: Cart items and total
+    """
+    buyers_data = load_buyers_data()
+    
+    if phone_number not in buyers_data.get('buyers', {}):
+        return {"error": "Buyer profile not found"}
+    
+    buyer = buyers_data['buyers'][phone_number]
+    cart = buyer.get('cart', [])
+    
+    if not cart:
+        return {
+            "empty": True,
+            "message": "Your cart is empty",
+            "items": [],
+            "total": 0
+        }
+    
+    total = sum(item['subtotal'] for item in cart)
+    
+    return {
+        "empty": False,
+        "items": cart,
+        "total": total,
+        "item_count": len(cart)
+    }
+
+
+def update_cart_item(phone_number: str, product_id: int, quantity: int):
+    """
+    Update quantity of a cart item or remove if quantity is 0.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        product_id (int): Product ID to update
+        quantity (int): New quantity (0 to remove)
+        
+    Returns:
+        dict: Success status
+    """
+    buyers_data = load_buyers_data()
+    
+    if phone_number not in buyers_data.get('buyers', {}):
+        return {"error": "Buyer profile not found"}
+    
+    buyer = buyers_data['buyers'][phone_number]
+    cart = buyer.get('cart', [])
+    
+    if quantity == 0:
+        # Remove item
+        buyer['cart'] = [item for item in cart if item['product_id'] != product_id]
+        message = "Item removed from cart"
+    else:
+        # Update quantity
+        item_found = False
+        for item in cart:
+            if item['product_id'] == product_id:
+                item['quantity'] = quantity
+                item['subtotal'] = quantity * item['unit_price']
+                item_found = True
+                break
+        
+        if not item_found:
+            return {"error": "Item not found in cart"}
+        
+        message = "Cart updated"
+    
+    if save_buyers_data(buyers_data):
+        return {
+            "success": True,
+            "message": message,
+            "cart": buyer['cart']
+        }
+    else:
+        return {"error": "Failed to update cart"}
+
+
+def clear_cart(phone_number: str):
+    """
+    Clear all items from buyer's cart.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        
+    Returns:
+        dict: Success status
+    """
+    buyers_data = load_buyers_data()
+    
+    if phone_number not in buyers_data.get('buyers', {}):
+        return {"error": "Buyer profile not found"}
+    
+    buyer = buyers_data['buyers'][phone_number]
+    buyer['cart'] = []
+    
+    if save_buyers_data(buyers_data):
+        return {
+            "success": True,
+            "message": "Cart cleared"
+        }
+    else:
+        return {"error": "Failed to clear cart"}
+
+
+def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float):
+    """
+    Place an order from buyer's cart (multi-item order).
+    
+    Args:
+        buyer_phone (str): Phone number of the buyer
+        delivery_address (str): Delivery address for the order
+        delivery_lat (float): Latitude of delivery location
+        delivery_lng (float): Longitude of delivery location
+        
+    Returns:
+        dict: Order confirmation with order details
+    """
+    # Load buyer data
+    buyers_data = load_buyers_data()
+    
+    if buyer_phone not in buyers_data.get('buyers', {}):
+        return {"error": "Buyer profile not found"}
+    
+    buyer = buyers_data['buyers'][buyer_phone]
+    cart = buyer.get('cart', [])
+    
+    if not cart:
+        return {"error": "Cart is empty. Please add items to cart first."}
+    
+    # Load seller data
+    seller_data = load_sample_data()
+    
+    if not seller_data:
+        return {"error": "Unable to load seller data"}
+    
+    # Get seller_id (assuming single seller for now)
+    seller_id = 1
     
     # Generate order ID
     order_id = len(seller_data.get('orders', [])) + 1
@@ -260,71 +489,69 @@ def place_order(product_id: int, quantity: int, buyer_name: str, delivery_addres
     # Create timestamp
     timestamp = datetime.now().isoformat()
     
-    # Create unified order structure
-    # This structure is IDENTICAL for both buyer and seller databases
+    # Calculate total
+    total_amount = sum(item['subtotal'] for item in cart)
+    
+    # Create new multi-item order structure
     order = {
-        "id": order_id,
+        "order_id": order_id,
         "seller_id": seller_id,
-        "product_id": product_id,
-        "product_name": product.get('title'),
-        "quantity": quantity,
-        "unit_price": product.get('price'),
-        "amount": total_amount,
-        "buyer_name": buyer_name,
-        "buyer_phone": buyer_phone if buyer_phone else "",
+        "buyer_name": buyer.get('name'),
+        "buyer_phone": buyer_phone,
         "delivery_address": delivery_address,
         "delivery_lat": delivery_lat,
         "delivery_lng": delivery_lng,
         "payment_status": "Pending",
         "order_status": "Received",
-        "created_at": timestamp
+        "created_at": timestamp,
+        "items": cart.copy(),  # Copy cart items to order
+        "total_amount": total_amount
     }
     
+    # Save to seller database
     if 'orders' not in seller_data:
         seller_data['orders'] = []
     seller_data['orders'].append(order)
     
-    json_file_path = os.path.join('static', 'sample_data.json')
-    try:
-        with open(json_file_path, 'w') as f:
-            json.dump(seller_data, f, indent=2)
-    except Exception as e:
-        return {
-            "error": f"Order created but failed to save to seller DB: {str(e)}",
-            "order_details": order
-        }
-    
-    # Save to buyer database (for WhatsApp users)
-    if buyer_phone:
-        buyers_data = load_buyers_data()
-        
-        # Create or update buyer
-        if buyer_phone not in buyers_data['buyers']:
-            buyers_data['buyers'][buyer_phone] = {
-                "phone_number": buyer_phone,
-                "name": buyer_name,
-                "created_at": datetime.now().isoformat(),
-                "orders": []
+    if FIREBASE_ENABLED:
+        if not save_sellers_data(seller_data):
+            return {
+                "error": "Order created but failed to save to seller DB",
+                "order_details": order
             }
-        else:
-            # Update buyer name if provided
-            if buyer_name:
-                buyers_data['buyers'][buyer_phone]['name'] = buyer_name
-        
-        # Add order to buyer's orders (same structure as seller)
-        buyers_data['buyers'][buyer_phone]['orders'].append(order)
-        
-        # Save buyers data
-        if not save_buyers_data(buyers_data):
-            print("Warning: Failed to save to buyer database")
+    else:
+        # JSON fallback
+        json_file_path = os.path.join('static', 'sellers_data.json')
+        try:
+            with open(json_file_path, 'w') as f:
+                json.dump(seller_data, f, indent=2)
+        except Exception as e:
+            return {
+                "error": f"Order created but failed to save to seller DB: {str(e)}",
+                "order_details": order
+            }
+    
+    # Add order to buyer's orders
+    if 'orders' not in buyer:
+        buyer['orders'] = []
+    buyer['orders'].append(order)
+    
+    # Clear cart after successful order
+    buyer['cart'] = []
+    
+    # Save buyers data
+    if not save_buyers_data(buyers_data):
+        print("Warning: Failed to save to buyer database")
+    
+    # Format item list for response
+    items_summary = ", ".join([f"{item['quantity']}x {item['product_name']}" for item in cart])
     
     return {
         "success": True,
         "message": f"Order placed successfully! Order ID: {order_id}. Total: ₹{total_amount:.2f}",
         "order_id": order_id,
-        "product_name": product.get('title'),
-        "quantity": quantity,
-        "amount": total_amount,
+        "items": items_summary,
+        "total_amount": total_amount,
         "delivery_address": delivery_address
     }
 
@@ -385,13 +612,26 @@ def check_buyer_profile_tool(phone_number: str) -> str:
 @tool
 def create_buyer_profile_tool(phone_number: str, name: str) -> str:
     """Create a new buyer profile with phone number and name.
-    Use this when placing first order for a new buyer.
+    This is automatically called by the system when needed.
     
     Args:
         phone_number: The buyer's phone number
         name: The buyer's full name
     """
     result = create_buyer_profile(phone_number, name)
+    return str(result)
+
+
+@tool
+def update_my_name(new_name: str) -> str:
+    """Update the buyer's name in their profile.
+    Use this when customer wants to change or update their name.
+    
+    Args:
+        new_name: The new name for the buyer
+    """
+    phone_number = current_user.get("phone_number")
+    result = update_buyer_name(phone_number, new_name)
     return str(result)
 
 
@@ -449,12 +689,75 @@ def calculate_price(product_id: str, quantity: str) -> str:
 
 
 @tool
-def create_order(product_id: str, quantity: str, delivery_address: str, delivery_latitude: str, delivery_longitude: str) -> str:
-    """Place an order for a product. Buyer name is automatically retrieved from profile.
+def add_product_to_cart(product_id: str, quantity: str) -> str:
+    """Add a product to the shopping cart. If product already exists in cart, quantity will be updated.
     
     Args:
-        product_id: The ID of the product to order
-        quantity: How many units to order
+        product_id: The ID of the product to add (e.g., "1", "2", "3")
+        quantity: How many units to add (e.g., "2", "5")
+    """
+    try:
+        phone_number = current_user.get("phone_number")
+        result = add_to_cart(phone_number, int(product_id), int(quantity))
+        return str(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def view_shopping_cart(query: str) -> str:
+    """View all items in the shopping cart with quantities, prices, and total amount.
+    Use this when user wants to see what's in their cart or review cart before checkout.
+    
+    Args:
+        query: User's request to view cart
+    """
+    try:
+        phone_number = current_user.get("phone_number")
+        result = get_cart(phone_number)
+        return str(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def modify_cart_item(product_id: str, quantity: str) -> str:
+    """Update quantity of a product in cart or remove it (set quantity to 0 to remove).
+    
+    Args:
+        product_id: The ID of the product in cart
+        quantity: New quantity (use "0" to remove item from cart)
+    """
+    try:
+        phone_number = current_user.get("phone_number")
+        result = update_cart_item(phone_number, int(product_id), int(quantity))
+        return str(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def empty_shopping_cart(query: str) -> str:
+    """Clear all items from the shopping cart.
+    Use this when user wants to start over or empty their cart.
+    
+    Args:
+        query: User's request to clear cart
+    """
+    try:
+        phone_number = current_user.get("phone_number")
+        result = clear_cart(phone_number)
+        return str(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@tool
+def create_order(delivery_address: str, delivery_latitude: str, delivery_longitude: str) -> str:
+    """Place an order with all items from shopping cart. Cart will be automatically cleared after successful order.
+    IMPORTANT: User must have items in cart before placing order.
+    
+    Args:
         delivery_address: Complete delivery address
         delivery_latitude: Latitude of delivery location (e.g., "23.0225")
         delivery_longitude: Longitude of delivery location (e.g., "72.5714")
@@ -462,18 +765,11 @@ def create_order(product_id: str, quantity: str, delivery_address: str, delivery
     try:
         phone_number = current_user.get("phone_number")
         
-        # Get buyer profile to retrieve name
-        buyers_data = load_buyers_data()
-        if phone_number not in buyers_data.get('buyers', {}):
-            return "Error: Buyer profile not found. Please contact support."
-        
-        buyer_name = buyers_data['buyers'][phone_number].get('name')
-        
         # Convert lat/lng to float
         lat = float(delivery_latitude)
         lng = float(delivery_longitude)
         
-        result = place_order(int(product_id), int(quantity), buyer_name, delivery_address, lat, lng, phone_number)
+        result = place_order(phone_number, delivery_address, lat, lng)
         return str(result)
     except ValueError as e:
         return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."
@@ -503,15 +799,29 @@ def get_my_orders(query: str) -> str:
     
     orders_summary = f"Buyer: {buyer.get('name')}\nTotal Orders: {len(orders)}\n\n"
     for idx, order in enumerate(orders, 1):
+        order_id = order.get('order_id', order.get('id'))
+        total_amount = order.get('total_amount', order.get('amount'))
+        
         orders_summary += f"Order {idx}:\n"
-        orders_summary += f"- Order ID: {order.get('id')}\n"
+        orders_summary += f"- Order ID: {order_id}\n"
         orders_summary += f"- Date: {order.get('created_at')}\n"
-        orders_summary += f"- Product: {order.get('product_name')}\n"
-        orders_summary += f"- Quantity: {order.get('quantity')}\n"
-        orders_summary += f"- Total: ₹{order.get('amount')}\n"
+        
+        # Handle multi-item orders
+        if 'items' in order and order['items']:
+            orders_summary += f"- Items:\n"
+            for item in order['items']:
+                orders_summary += f"  * {item['product_name']} x{item['quantity']} - ₹{item['subtotal']}\n"
+            orders_summary += f"- Total: ₹{total_amount}\n"
+        else:
+            # Old single-item structure fallback
+            orders_summary += f"- Product: {order.get('product_name')}\n"
+            orders_summary += f"- Quantity: {order.get('quantity')}\n"
+            orders_summary += f"- Total: ₹{total_amount}\n"
+        
         orders_summary += f"- Status: {order.get('order_status', 'Pending')}\n"
         orders_summary += f"- Payment: {order.get('payment_status', 'Pending')}\n"
         orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"
+    
     
     return orders_summary
 

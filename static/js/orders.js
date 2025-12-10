@@ -11,10 +11,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Orders
 async function loadOrders() {
     try {
-        const response = await fetch('/static/sample_data.json');
+        const response = await fetch('/static/sellers_data.json');
         const data = await response.json();
         
-        // Orders are flat in sample_data.json
+        // Orders are flat in sellers_data.json
         currentOrders = data.orders || [];
         
         // Sort by date (most recent first)
@@ -38,27 +38,37 @@ function displayOrders(orders) {
         return;
     }
     
-    tableBody.innerHTML = orders.map(order => `
+    tableBody.innerHTML = orders.map(order => {
+        const orderId = order.order_id || order.id;
+        const totalAmount = order.total_amount || order.amount;
+        const itemsDisplay = order.items && order.items.length > 0
+            ? order.items.length === 1
+                ? `${order.items[0].product_name} (x${order.items[0].quantity})`
+                : `${order.items.length} items`
+            : order.product_name ? `${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}` : 'N/A';
+        
+        return `
         <tr>
-            <td>#${order.id}</td>
+            <td>#${orderId}</td>
             <td>${order.buyer_name}</td>
             <td>${order.buyer_phone || '7801833884'}</td>
             <td>${order.delivery_address ? order.delivery_address.substring(0, 15) + '...' : 'N/A'}</td>
-            <td>${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}</td>
-            <td><strong>₹${order.amount.toFixed(2)}</strong></td>
+            <td>${itemsDisplay}</td>
+            <td><strong>₹${totalAmount.toFixed(2)}</strong></td>
             <td><span class="status-badge status-${getStatusClass(order.payment_status)}">${order.payment_status}</span></td>
             <td><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></td>
             <td>${formatDate(order.created_at)}</td>
             <td>
-                <button class="btn btn-primary btn-sm" onclick="viewOrder(${order.id})">
+                <button class="btn btn-primary btn-sm" onclick="viewOrder(${orderId})">
                     <i class="fas fa-eye"></i> View
                 </button>
-                <button class="btn btn-success btn-sm" onclick="openStatusModal(${order.id})">
+                <button class="btn btn-success btn-sm" onclick="openStatusModal(${orderId})">
                     <i class="fas fa-edit"></i> Update
                 </button>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Filter Orders
@@ -110,24 +120,43 @@ function getStatusClass(status) {
 
 // View Order Details
 async function viewOrder(orderId) {
-    const order = currentOrders.find(o => o.id === orderId);
+    const order = currentOrders.find(o => (o.order_id || o.id) === orderId);
     if (!order) return;
     
-    const detailsDiv = document.getElementById('order-details');
-    detailsDiv.innerHTML = `
-        <div class="info-display">
-            <div class="info-item">
-                <div class="info-label">Order ID:</div>
-                <div class="info-value">#${order.id}</div>
+    const actualOrderId = order.order_id || order.id;
+    const totalAmount = order.total_amount || order.amount;
+    
+    // Build items HTML
+    let itemsHTML = '';
+    if (order.items && order.items.length > 0) {
+        itemsHTML = `
+            <div class="info-display" style="margin-top: 1.5rem;">
+                <h4 style="margin-bottom: 1rem; color: #2c3e50;">Order Items:</h4>
+                ${order.items.map((item, index) => `
+                    <div class="info-display" style="background: #f8f9fa; padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px;">
+                        <div class="info-item">
+                            <div class="info-label">Item ${index + 1}:</div>
+                            <div class="info-value"><strong>${item.product_name}</strong></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Quantity:</div>
+                            <div class="info-value">${item.quantity}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Unit Price:</div>
+                            <div class="info-value">₹${item.unit_price.toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Subtotal:</div>
+                            <div class="info-value"><strong>₹${item.subtotal.toFixed(2)}</strong></div>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
-            <div class="info-item">
-                <div class="info-label">Customer:</div>
-                <div class="info-value">${order.buyer_name}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Phone:</div>
-                <div class="info-value">${order.buyer_phone || '7801833884'}</div>
-            </div>
+        `;
+    } else if (order.product_name) {
+        // Old structure fallback
+        itemsHTML = `
             <div class="info-item">
                 <div class="info-label">Product:</div>
                 <div class="info-value">${order.product_name}</div>
@@ -140,6 +169,24 @@ async function viewOrder(orderId) {
                 <div class="info-label">Unit Price:</div>
                 <div class="info-value">₹${order.unit_price.toFixed(2)}</div>
             </div>` : ''}
+        `;
+    }
+    
+    const detailsDiv = document.getElementById('order-details');
+    detailsDiv.innerHTML = `
+        <div class="info-display">
+            <div class="info-item">
+                <div class="info-label">Order ID:</div>
+                <div class="info-value">#${actualOrderId}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Customer:</div>
+                <div class="info-value">${order.buyer_name}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">${order.buyer_phone || '7801833884'}</div>
+            </div>
             <div class="info-item">
                 <div class="info-label">Order Status:</div>
                 <div class="info-value"><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></div>
@@ -154,9 +201,11 @@ async function viewOrder(orderId) {
             </div>
             <div class="info-item">
                 <div class="info-label">Total Amount:</div>
-                <div class="info-value"><strong>₹${order.amount.toFixed(2)}</strong></div>
+                <div class="info-value"><strong>₹${totalAmount.toFixed(2)}</strong></div>
             </div>
         </div>
+        
+        ${itemsHTML}
         
         ${order.delivery_address ? `
         <div class="info-display" style="margin-top: 1.5rem;">
@@ -184,7 +233,7 @@ function closeOrderModal() {
 
 // Open Status Modal
 function openStatusModal(orderId) {
-    const order = currentOrders.find(o => o.id === orderId);
+    const order = currentOrders.find(o => (o.order_id || o.id) === orderId);
     if (!order) return;
     
     document.getElementById('status-order-id').value = orderId;

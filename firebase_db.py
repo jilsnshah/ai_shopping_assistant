@@ -1,0 +1,392 @@
+"""
+Firebase Realtime Database Integration
+Handles all database operations for buyers, sellers, and agent memory
+"""
+
+import firebase_admin
+from firebase_admin import credentials, db
+import json
+import os
+from datetime import datetime
+
+
+# Initialize Firebase (only once)
+_firebase_initialized = False
+
+def initialize_firebase():
+    """Initialize Firebase Admin SDK with credentials"""
+    global _firebase_initialized
+    
+    if _firebase_initialized:
+        return
+    
+    # Check if Firebase credentials file exists
+    cred_path = os.path.join(os.path.dirname(__file__), 'firebase-credentials.json')
+    
+    if not os.path.exists(cred_path):
+        print(f"Warning: Firebase credentials file not found at {cred_path}")
+        print("Please download your Firebase service account key and save it as 'firebase-credentials.json'")
+        return
+    
+    # Initialize Firebase
+    cred = credentials.Certificate(cred_path)
+    
+    # Get database URL from credentials or use environment variable
+    try:
+        with open(cred_path, 'r') as f:
+            cred_data = json.load(f)
+            project_id = cred_data.get('project_id')
+            database_url = f'https://{project_id}-default-rtdb.firebaseio.com/'
+    except:
+        database_url = os.environ.get('FIREBASE_DATABASE_URL')
+    
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': database_url
+    })
+    
+    _firebase_initialized = True
+    print(f"Firebase initialized successfully with database: {database_url}")
+
+
+# ==================== BUYERS DATA ====================
+
+def get_buyers_ref():
+    """Get reference to buyers node in Firebase"""
+    return db.reference('buyers')
+
+
+def load_buyers_data():
+    """
+    Load all buyers data from Firebase.
+    Returns dict with 'buyers' key containing buyer profiles.
+    """
+    try:
+        initialize_firebase()
+        buyers_ref = get_buyers_ref()
+        buyers = buyers_ref.get()
+        
+        if buyers is None:
+            return {"buyers": {}}
+        
+        return {"buyers": buyers}
+    except Exception as e:
+        print(f"Error loading buyers data from Firebase: {e}")
+        # Fallback to JSON file if Firebase fails
+        return load_buyers_data_from_json()
+
+
+def save_buyers_data(buyers_data):
+    """
+    Save buyers data to Firebase.
+    
+    Args:
+        buyers_data (dict): Dictionary with 'buyers' key
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        buyers_ref = get_buyers_ref()
+        buyers_ref.set(buyers_data.get('buyers', {}))
+        return True
+    except Exception as e:
+        print(f"Error saving buyers data to Firebase: {e}")
+        # Fallback to JSON file if Firebase fails
+        return save_buyers_data_to_json(buyers_data)
+
+
+def get_buyer(phone_number):
+    """Get a single buyer's data by phone number"""
+    try:
+        initialize_firebase()
+        buyer_ref = db.reference(f'buyers/{phone_number}')
+        return buyer_ref.get()
+    except Exception as e:
+        print(f"Error getting buyer from Firebase: {e}")
+        return None
+
+
+def update_buyer(phone_number, buyer_data):
+    """Update a single buyer's data"""
+    try:
+        initialize_firebase()
+        buyer_ref = db.reference(f'buyers/{phone_number}')
+        buyer_ref.set(buyer_data)
+        return True
+    except Exception as e:
+        print(f"Error updating buyer in Firebase: {e}")
+        return False
+
+
+def add_buyer_order(phone_number, order):
+    """Add an order to a buyer's order history"""
+    try:
+        initialize_firebase()
+        orders_ref = db.reference(f'buyers/{phone_number}/orders')
+        orders = orders_ref.get() or []
+        orders.append(order)
+        orders_ref.set(orders)
+        return True
+    except Exception as e:
+        print(f"Error adding order to buyer in Firebase: {e}")
+        return False
+
+
+def update_buyer_cart(phone_number, cart):
+    """Update a buyer's shopping cart"""
+    try:
+        initialize_firebase()
+        cart_ref = db.reference(f'buyers/{phone_number}/cart')
+        cart_ref.set(cart)
+        return True
+    except Exception as e:
+        print(f"Error updating buyer cart in Firebase: {e}")
+        return False
+
+
+# ==================== SELLERS DATA ====================
+
+def get_sellers_ref():
+    """Get reference to sellers node in Firebase"""
+    return db.reference('sellers')
+
+
+def load_sellers_data():
+    """
+    Load all sellers data from Firebase.
+    Returns dict with 'sellers', 'products', and 'orders' keys.
+    """
+    try:
+        initialize_firebase()
+        sellers_ref = db.reference('sellers')
+        data = sellers_ref.get()
+        
+        if data is None:
+            return {
+                "sellers": [],
+                "products": [],
+                "orders": []
+            }
+        
+        return data
+    except Exception as e:
+        print(f"Error loading sellers data from Firebase: {e}")
+        # Fallback to JSON file if Firebase fails
+        return load_sellers_data_from_json()
+
+
+def save_sellers_data(sellers_data):
+    """
+    Save sellers data to Firebase.
+    
+    Args:
+        sellers_data (dict): Dictionary with 'sellers', 'products', 'orders' keys
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        sellers_ref = db.reference('sellers')
+        sellers_ref.set(sellers_data)
+        return True
+    except Exception as e:
+        print(f"Error saving sellers data to Firebase: {e}")
+        # Fallback to JSON file if Firebase fails
+        return save_sellers_data_to_json(sellers_data)
+
+
+def add_order(order):
+    """Add a new order to the orders list"""
+    try:
+        initialize_firebase()
+        orders_ref = db.reference('sellers/orders')
+        orders = orders_ref.get() or []
+        orders.append(order)
+        orders_ref.set(orders)
+        return True
+    except Exception as e:
+        print(f"Error adding order to Firebase: {e}")
+        return False
+
+
+def update_order_status(order_id, order_status=None, payment_status=None):
+    """Update order status in Firebase"""
+    try:
+        initialize_firebase()
+        orders_ref = db.reference('sellers/orders')
+        orders = orders_ref.get() or []
+        
+        for i, order in enumerate(orders):
+            if order.get('order_id') == order_id or order.get('id') == order_id:
+                if order_status:
+                    orders[i]['order_status'] = order_status
+                if payment_status:
+                    orders[i]['payment_status'] = payment_status
+                orders_ref.set(orders)
+                return True
+        
+        return False
+    except Exception as e:
+        print(f"Error updating order status in Firebase: {e}")
+        return False
+
+
+# ==================== AGENT MEMORY ====================
+
+def get_agent_memory_ref():
+    """Get reference to agent_memory node in Firebase"""
+    return db.reference('agent_memory')
+
+
+def save_agent_memory(phone_number, memory_data):
+    """
+    Save agent conversation memory for a specific buyer.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        memory_data (dict): Conversation memory data
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        memory_ref = db.reference(f'agent_memory/{phone_number}')
+        memory_ref.set(memory_data)
+        return True
+    except Exception as e:
+        print(f"Error saving agent memory to Firebase: {e}")
+        return False
+
+
+def load_agent_memory(phone_number):
+    """
+    Load agent conversation memory for a specific buyer.
+    
+    Args:
+        phone_number (str): Buyer's phone number
+        
+    Returns:
+        dict: Memory data or None if not found
+    """
+    try:
+        initialize_firebase()
+        memory_ref = db.reference(f'agent_memory/{phone_number}')
+        return memory_ref.get()
+    except Exception as e:
+        print(f"Error loading agent memory from Firebase: {e}")
+        return None
+
+
+def clear_agent_memory(phone_number):
+    """Clear agent memory for a specific buyer"""
+    try:
+        initialize_firebase()
+        memory_ref = db.reference(f'agent_memory/{phone_number}')
+        memory_ref.delete()
+        return True
+    except Exception as e:
+        print(f"Error clearing agent memory in Firebase: {e}")
+        return False
+
+
+# ==================== JSON FALLBACK FUNCTIONS ====================
+
+def load_buyers_data_from_json():
+    """Fallback: Load buyers data from JSON file"""
+    json_path = os.path.join(os.path.dirname(__file__), 'static', 'buyers_data.json')
+    try:
+        with open(json_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"buyers": {}}
+    except json.JSONDecodeError:
+        print(f"Error: Invalid JSON in {json_path}")
+        return {"buyers": {}}
+
+
+def save_buyers_data_to_json(buyers_data):
+    """Fallback: Save buyers data to JSON file"""
+    json_path = os.path.join(os.path.dirname(__file__), 'static', 'buyers_data.json')
+    try:
+        with open(json_path, 'w') as f:
+            json.dump(buyers_data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving buyers data to JSON: {e}")
+        return False
+
+
+def load_sellers_data_from_json():
+    """Fallback: Load sellers data from JSON file"""
+    json_path = os.path.join(os.path.dirname(__file__), 'static', 'sellers_data.json')
+    try:
+        with open(json_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "sellers": [],
+            "products": [],
+            "orders": []
+        }
+    except json.JSONDecodeError:
+        print(f"Error: Invalid JSON in {json_path}")
+        return {
+            "sellers": [],
+            "products": [],
+            "orders": []
+        }
+
+
+def save_sellers_data_to_json(sellers_data):
+    """Fallback: Save sellers data to JSON file"""
+    json_path = os.path.join(os.path.dirname(__file__), 'static', 'sellers_data.json')
+    try:
+        with open(json_path, 'w') as f:
+            json.dump(sellers_data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving sellers data to JSON: {e}")
+        return False
+
+
+# ==================== MIGRATION UTILITIES ====================
+
+def migrate_json_to_firebase():
+    """Migrate existing JSON data to Firebase"""
+    try:
+        initialize_firebase()
+        
+        print("Starting migration from JSON to Firebase...")
+        
+        # Migrate buyers data
+        buyers_data = load_buyers_data_from_json()
+        if buyers_data.get('buyers'):
+            save_buyers_data(buyers_data)
+            print(f"✓ Migrated {len(buyers_data['buyers'])} buyers")
+        
+        # Migrate sellers data
+        sellers_data = load_sellers_data_from_json()
+        if sellers_data:
+            save_sellers_data(sellers_data)
+            print(f"✓ Migrated {len(sellers_data.get('sellers', []))} sellers")
+            print(f"✓ Migrated {len(sellers_data.get('products', []))} products")
+            print(f"✓ Migrated {len(sellers_data.get('orders', []))} orders")
+        
+        print("Migration completed successfully!")
+        return True
+        
+    except Exception as e:
+        print(f"Error during migration: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    # Test Firebase connection and optionally migrate data
+    print("Testing Firebase connection...")
+    initialize_firebase()
+    
+    # Uncomment to migrate existing JSON data to Firebase
+    # migrate_json_to_firebase()
