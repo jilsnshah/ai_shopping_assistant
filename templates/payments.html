@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Payments - Seller Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Payment Management</h1>
+    <div class="filter-buttons">
+        <button class="filter-btn active" data-status="all" onclick="filterPayments('all')">
+            All Payments
+        </button>
+        <button class="filter-btn" data-status="Pending" onclick="filterPayments('Pending')">
+            <i class="fas fa-clock"></i> Pending
+        </button>
+        <button class="filter-btn" data-status="Requested" onclick="filterPayments('Requested')">
+            <i class="fas fa-paper-plane"></i> Requested
+        </button>
+        <button class="filter-btn" data-status="Completed" onclick="filterPayments('Completed')">
+            <i class="fas fa-check-double"></i> Completed
+        </button>
+    </div>
+</div>
+
+<!-- Payment Stats -->
+<div class="stats-row">
+    <div class="mini-stat">
+        <i class="fas fa-clock"></i>
+        <div>
+            <span class="mini-stat-value" id="pending-payments-count">0</span>
+            <span class="mini-stat-label">Pending</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-paper-plane"></i>
+        <div>
+            <span class="mini-stat-value" id="requested-payments-count">0</span>
+            <span class="mini-stat-label">Requested</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-check-double"></i>
+        <div>
+            <span class="mini-stat-value" id="completed-payments-count">0</span>
+            <span class="mini-stat-label">Completed</span>
+        </div>
+    </div>
+    <div class="mini-stat">
+        <i class="fas fa-rupee-sign"></i>
+        <div>
+            <span class="mini-stat-value" id="total-payments-value">₹0</span>
+            <span class="mini-stat-label">Total Revenue</span>
+        </div>
+    </div>
+</div>
+
+<!-- Payments Table -->
+<div class="section-container">
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Payment Status</th>
+                    <th>Order Status</th>
+                    <th>Order Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="payments-table">
+                <tr>
+                    <td colspan="8" class="text-center">Loading payments...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Update Payment Status Modal -->
+<div id="payment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Update Payment Status</h2>
+            <button class="close-btn" onclick="closePaymentModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="payment-form">
+            <input type="hidden" id="payment-order-id">
+            
+            <div class="form-group">
+                <label for="payment-status">
+                    <i class="fas fa-money-bill"></i> Payment Status *
+                </label>
+                <select id="payment-status" required>
+                    <option value="">Select Payment Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Requested">Requested</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="payment-notes">
+                    <i class="fas fa-sticky-note"></i> Notes (Optional)
+                </label>
+                <textarea id="payment-notes" rows="3" placeholder="Add any payment notes..."></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Payment Status
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Payment Details Modal -->
+<div id="payment-details-modal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2>Payment Details</h2>
+            <button class="close-btn" onclick="closePaymentDetailsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="payment-details">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endblock %}

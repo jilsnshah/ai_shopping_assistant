@@ -127,6 +127,12 @@ def customers():
         return render_template('login.html')
     return render_template('customers.html')
 
+@app.route('/payments')
+def payments():
+    if 'seller_id' not in session:
+        return render_template('login.html')
+    return render_template('payments.html')
+
 
 # ===== API ENDPOINTS =====
 
@@ -415,12 +421,20 @@ def update_order(order_id):
                 
                 # Send WhatsApp notification if order status changed
                 if order_status_changed and buyer_phone:
-                    product_name = order.get('product_name', 'your order')
+                    # Get items display for multi-item orders
+                    items_display = ""
+                    if order.get('items') and len(order['items']) > 0:
+                        if len(order['items']) == 1:
+                            items_display = f"{order['items'][0]['product_name']} x{order['items'][0]['quantity']}"
+                        else:
+                            items_display = "\n".join([f"- {item['product_name']} x{item['quantity']}" for item in order['items']])
+                    else:
+                        items_display = order.get('product_name', 'your order')
                     
                     message = (
-                        f"🛒 *Order Update* 🛒\n\n"
+                        f"🛒 *Order Status Update* 🛒\n\n"
                         f"Order ID: #{order_id}\n"
-                        f"Product: {product_name}\n"
+                        f"Items:\n{items_display}\n\n"
                         f"Status: *{new_order_status}*\n\n"
                         f"Thank you for your order!"
                     )
@@ -431,40 +445,73 @@ def update_order(order_id):
                     except Exception as e:
                         print(f"⚠️ Failed to send order status notification: {e}")
                 
-                # Send payment request WhatsApp notification if payment status changed to "Requested"
-                if payment_status_changed and new_payment_status == "Requested" and buyer_phone:
-                    product_name = order.get('product_name', 'your order')
-                    amount = order.get('amount', 0)
+                # Send WhatsApp notification if payment status changed
+                if payment_status_changed and buyer_phone:
+                    total_amount = order.get('total_amount') or order.get('amount', 0)
+                    
+                    # Get items display for multi-item orders
+                    items_display = ""
+                    if order.get('items') and len(order['items']) > 0:
+                        if len(order['items']) == 1:
+                            items_display = f"{order['items'][0]['product_name']} x{order['items'][0]['quantity']}"
+                        else:
+                            items_display = "\n".join([f"- {item['product_name']} x{item['quantity']}" for item in order['items']])
+                    else:
+                        items_display = order.get('product_name', 'your order')
                     
                     # Get seller's UPI ID from company_info
                     upi_id = company_info.get('upi_id', '')
                     
-                    if upi_id:
+                    if new_payment_status == "Requested":
+                        if upi_id:
+                            message = (
+                                f"💳 *Payment Request* 💳\n\n"
+                                f"Order ID: #{order_id}\n"
+                                f"Items:\n{items_display}\n"
+                                f"Amount: *₹{total_amount:.2f}*\n\n"
+                                f"Please pay to UPI ID:\n"
+                                f"📱 *{upi_id}*\n\n"
+                                f"After payment, please share the transaction screenshot for verification.\n\n"
+                                f"Thank you! 🙏"
+                            )
+                        else:
+                            message = (
+                                f"💳 *Payment Request* 💳\n\n"
+                                f"Order ID: #{order_id}\n"
+                                f"Items:\n{items_display}\n"
+                                f"Amount: *₹{total_amount:.2f}*\n\n"
+                                f"Please contact the seller for payment details.\n\n"
+                                f"Thank you! 🙏"
+                            )
+                    elif new_payment_status == "Completed":
                         message = (
-                            f"💳 *Payment Request* 💳\n\n"
+                            f"✅ *Payment Confirmed* ✅\n\n"
                             f"Order ID: #{order_id}\n"
-                            f"Product: {product_name}\n"
-                            f"Amount: *₹{amount:.2f}*\n\n"
-                            f"Please pay to UPI ID:\n"
-                            f"📱 *{upi_id}*\n\n"
-                            f"After payment, please share the transaction screenshot for verification.\n\n"
+                            f"Items:\n{items_display}\n"
+                            f"Amount: ₹{total_amount:.2f}\n\n"
+                            f"Your payment has been received and confirmed!\n"
+                            f"Your order will be processed shortly.\n\n"
+                            f"Thank you for your purchase! 🎉"
+                        )
+                    elif new_payment_status == "Pending":
+                        message = (
+                            f"⏳ *Payment Status Update* ⏳\n\n"
+                            f"Order ID: #{order_id}\n"
+                            f"Items:\n{items_display}\n"
+                            f"Amount: ₹{total_amount:.2f}\n\n"
+                            f"Payment status: *Pending*\n\n"
+                            f"We'll notify you once payment is requested.\n\n"
                             f"Thank you! 🙏"
                         )
                     else:
-                        message = (
-                            f"💳 *Payment Request* 💳\n\n"
-                            f"Order ID: #{order_id}\n"
-                            f"Product: {product_name}\n"
-                            f"Amount: *₹{amount:.2f}*\n\n"
-                            f"Please contact the seller for payment details.\n\n"
-                            f"Thank you! 🙏"
-                        )
+                        message = None
                     
-                    try:
-                        send_whatsapp_message(buyer_phone, message)
-                        print(f"✅ Payment request WhatsApp notification sent to {buyer_phone}")
-                    except Exception as e:
-                        print(f"⚠️ Failed to send payment request notification: {e}")
+                    if message:
+                        try:
+                            send_whatsapp_message(buyer_phone, message)
+                            print(f"✅ Payment status WhatsApp notification sent to {buyer_phone}")
+                        except Exception as e:
+                            print(f"⚠️ Failed to send payment status notification: {e}")
                 
                 return jsonify({'message': 'Order updated successfully', 'order': order}), 200
         

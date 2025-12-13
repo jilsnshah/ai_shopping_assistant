@@ -38,8 +38,8 @@ except ImportError:
     from langgraph.checkpoint.memory import InMemorySaver
     POSTGRES_MEMORY_ENABLED = False
 
-# Cloud SQL connection string
-DB_HOST = "34.55.153.221"
+# Cloud SQL connection string (direct connection to public IP)
+DB_HOST = "34.55.153.221"  # Cloud SQL public IP
 DB_PORT = "5432"
 DB_USER = "postgres"
 DB_PASS = "PostgresAdmin2024"
@@ -182,7 +182,7 @@ New recommended flow for ordering:
 4. Show cart periodically: "You have apples (2) and oranges (5) in cart. Total: ₹XX"
 5. Customer can modify cart: "change apples to 3", "remove oranges"
 6. When ready to checkout: Use view_shopping_cart to show summary
-7. Ask for delivery address and location coordinates
+7. Ask for delivery address and location link via whatsapp feature
 8. Confirm order details (items from cart, address, total)
 9. Use create_order (cart is automatically used, then cleared)
 10. Provide order confirmation with all items
@@ -257,21 +257,15 @@ Remember: You're chatting with customers via WhatsApp, so be conversational and 
 
     # Create PostgreSQL checkpointer for persistent conversation memory (Google Cloud SQL)
     if POSTGRES_MEMORY_ENABLED:
-        try:
-            # Initialize checkpointer with Cloud SQL connection string
-            # The context manager needs to stay open, so we use sync_connection
-            import psycopg
-            from psycopg.rows import dict_row
-            
-            conn = psycopg.connect(DB_URI, autocommit=True, row_factory=dict_row)
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()  # Creates required tables
-            print("✓ PostgreSQL checkpointer initialized (Google Cloud SQL)")
-        except Exception as e:
-            print(f"⚠ PostgreSQL initialization failed: {e}")
-            print("  Falling back to in-memory storage")
-            from langgraph.checkpoint.memory import InMemorySaver
-            checkpointer = InMemorySaver()
+        # Initialize checkpointer with Cloud SQL connection string
+        # The context manager needs to stay open, so we use sync_connection
+        import psycopg
+        from psycopg.rows import dict_row
+        
+        conn = psycopg.connect(DB_URI, autocommit=True, row_factory=dict_row)
+        checkpointer = PostgresSaver(conn)
+        checkpointer.setup()  # Creates required tables
+        print("✓ PostgreSQL checkpointer initialized (Google Cloud SQL)")
     else:
         from langgraph.checkpoint.memory import InMemorySaver
         checkpointer = InMemorySaver()

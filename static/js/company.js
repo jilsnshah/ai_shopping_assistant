@@ -20,10 +20,10 @@ async function loadCompanyInfo() {
             document.getElementById('email').value = company.email || '';
             document.getElementById('phone').value = company.phone || '';
             document.getElementById('address').value = company.address || '';
-            document.getElementById('city').value = '';
-            document.getElementById('state').value = '';
-            document.getElementById('pincode').value = '';
-            document.getElementById('country').value = 'India';
+            document.getElementById('city').value = company.city || '';
+            document.getElementById('state').value = company.state || '';
+            document.getElementById('pincode').value = company.pincode || '';
+            document.getElementById('country').value = company.country || 'India';
             document.getElementById('upi-id').value = company.upi_id || '';
             document.getElementById('description').value = company.company_description || '';
             

@@ -224,8 +224,17 @@ async function viewOrder(orderId) {
             </div>
             ${order.delivery_lat && order.delivery_lng ? `
             <div class="info-item">
-                <div class="info-label">Coordinates:</div>
-                <div class="info-value">Lat: ${order.delivery_lat}, Lng: ${order.delivery_lng}</div>
+                <div class="info-label">Location:</div>
+                <div class="info-value">
+                    <a href="https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}" 
+                       target="_blank" 
+                       style="color: #3b82f6; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-map-marker-alt"></i>
+                        View on Google Maps
+                    </a>
+                    <br>
+                    <small style="color: #6b7280;">${order.delivery_lat}, ${order.delivery_lng}</small>
+                </div>
             </div>
             ` : ''}
         </div>

@@ -1,7 +1,13 @@
+# -*- coding: utf-8 -*-
 """
 AI Shopping Assistant Agent with WhatsApp Business API Integration
 Handles incoming WhatsApp messages via webhook and sends responses back
 """
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from flask import Flask, request, jsonify
 import os
