@@ -34,7 +34,7 @@ async function loadCustomers() {
             customer.totalOrders++;
             
             if (order.order_status !== 'Cancelled') {
-                customer.totalSpent += order.amount || 0;
+                customer.totalSpent += order.total_amount || order.amount || 0;
             }
             
             customer.orders.push(order);
