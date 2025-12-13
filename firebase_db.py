@@ -152,10 +152,37 @@ def get_sellers_ref():
     return db.reference('sellers')
 
 
+def load_seller_data(seller_id):
+    """
+    Load specific seller data from Firebase by seller ID.
+    Returns dict with 'company_info', 'products', and 'orders' keys.
+    """
+    try:
+        initialize_firebase()
+        seller_ref = db.reference(f'sellers/{seller_id}')
+        data = seller_ref.get()
+        
+        if data is None:
+            return {
+                "company_info": {},
+                "products": [],
+                "orders": []
+            }
+        
+        return data
+    except Exception as e:
+        print(f"Error loading seller {seller_id} data from Firebase: {e}")
+        return {
+            "company_info": {},
+            "products": [],
+            "orders": []
+        }
+
+
 def load_sellers_data():
     """
-    Load all sellers data from Firebase.
-    Returns dict with 'sellers', 'products', and 'orders' keys.
+    Load all sellers data from Firebase (for backward compatibility).
+    Returns dict with all seller IDs.
     """
     try:
         initialize_firebase()
@@ -163,25 +190,41 @@ def load_sellers_data():
         data = sellers_ref.get()
         
         if data is None:
-            return {
-                "sellers": [],
-                "products": [],
-                "orders": []
-            }
+            return {}
         
         return data
     except Exception as e:
         print(f"Error loading sellers data from Firebase: {e}")
-        # Fallback to JSON file if Firebase fails
-        return load_sellers_data_from_json()
+        return {}
+
+
+def save_seller_data(seller_id, seller_data):
+    """
+    Save specific seller data to Firebase.
+    
+    Args:
+        seller_id (str): Seller ID
+        seller_data (dict): Dictionary with 'company_info', 'products', 'orders' keys
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        seller_ref = db.reference(f'sellers/{seller_id}')
+        seller_ref.set(seller_data)
+        return True
+    except Exception as e:
+        print(f"Error saving seller {seller_id} data to Firebase: {e}")
+        return False
 
 
 def save_sellers_data(sellers_data):
     """
-    Save sellers data to Firebase.
+    Save all sellers data to Firebase (for backward compatibility).
     
     Args:
-        sellers_data (dict): Dictionary with 'sellers', 'products', 'orders' keys
+        sellers_data (dict): Dictionary with all seller IDs
         
     Returns:
         bool: True if successful, False otherwise
@@ -193,15 +236,14 @@ def save_sellers_data(sellers_data):
         return True
     except Exception as e:
         print(f"Error saving sellers data to Firebase: {e}")
-        # Fallback to JSON file if Firebase fails
-        return save_sellers_data_to_json(sellers_data)
+        return False
 
 
-def add_order(order):
-    """Add a new order to the orders list"""
+def add_order(seller_id, order):
+    """Add a new order to specific seller's orders list"""
     try:
         initialize_firebase()
-        orders_ref = db.reference('sellers/orders')
+        orders_ref = db.reference(f'sellers/{seller_id}/orders')
         orders = orders_ref.get() or []
         orders.append(order)
         orders_ref.set(orders)
@@ -211,11 +253,11 @@ def add_order(order):
         return False
 
 
-def update_order_status(order_id, order_status=None, payment_status=None):
-    """Update order status in Firebase"""
+def update_order_status(seller_id, order_id, order_status=None, payment_status=None):
+    """Update order status in Firebase for specific seller"""
     try:
         initialize_firebase()
-        orders_ref = db.reference('sellers/orders')
+        orders_ref = db.reference(f'sellers/{seller_id}/orders')
         orders = orders_ref.get() or []
         
         for i, order in enumerate(orders):

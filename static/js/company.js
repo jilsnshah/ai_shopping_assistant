@@ -8,33 +8,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Company Information
 async function loadCompanyInfo() {
     try {
-        const response = await fetch('/static/sellers_data.json');
+        const response = await fetch('/api/data');
         const data = await response.json();
         
-        // Check if we have company_info or use seller info
-        let company = data.company_info;
-        if (!company && data.sellers && data.sellers.length > 0) {
-            const seller = data.sellers[0];
-            company = {
-                name: seller.company_name,
-                email: seller.email,
-                phone: seller.phone,
-                address: seller.address,
-                description: seller.company_description
-            };
-        }
+        // Use company_info from new structure
+        const company = data.company_info || {};
         
         if (company) {
             // Populate form fields
-            document.getElementById('company-name').value = company.name || company.company_name || '';
+            document.getElementById('company-name').value = company.company_name || '';
             document.getElementById('email').value = company.email || '';
             document.getElementById('phone').value = company.phone || '';
             document.getElementById('address').value = company.address || '';
-            document.getElementById('city').value = company.city || '';
-            document.getElementById('state').value = company.state || '';
-            document.getElementById('pincode').value = company.pincode || '';
-            document.getElementById('country').value = company.country || 'India';
-            document.getElementById('description').value = company.description || company.company_description || '';
+            document.getElementById('city').value = '';
+            document.getElementById('state').value = '';
+            document.getElementById('pincode').value = '';
+            document.getElementById('country').value = 'India';
+            document.getElementById('upi-id').value = company.upi_id || '';
+            document.getElementById('description').value = company.company_description || '';
             
             // Display current info
             displayCompanyInfo(company);
@@ -90,6 +81,10 @@ function displayCompanyInfo(company) {
             <div class="info-label"><i class="fas fa-flag"></i> Country:</div>
             <div class="info-value">${company.country}</div>
         </div>` : ''}
+        ${company.upi_id ? `<div class="info-item">
+            <div class="info-label"><i class="fas fa-mobile-alt"></i> UPI ID:</div>
+            <div class="info-value">${company.upi_id}</div>
+        </div>` : ''}
         ${(company.description || company.company_description) ? `
         <div class="info-item">
             <div class="info-label"><i class="fas fa-align-left"></i> Description:</div>
@@ -104,7 +99,7 @@ async function saveCompanyInfo(e) {
     e.preventDefault();
     
     const companyData = {
-        name: document.getElementById('company-name').value,
+        company_name: document.getElementById('company-name').value,
         email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         address: document.getElementById('address').value,
@@ -112,8 +107,8 @@ async function saveCompanyInfo(e) {
         state: document.getElementById('state').value,
         pincode: document.getElementById('pincode').value,
         country: document.getElementById('country').value,
-        description: document.getElementById('description').value,
-        seller_id: 1  // Default seller ID
+        upi_id: document.getElementById('upi-id').value,
+        company_description: document.getElementById('description').value
     };
     
     try {

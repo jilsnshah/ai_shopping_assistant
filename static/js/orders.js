@@ -11,10 +11,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Orders
 async function loadOrders() {
     try {
-        const response = await fetch('/static/sellers_data.json');
+        const response = await fetch('/api/data');
         const data = await response.json();
         
-        // Orders are flat in sellers_data.json
+        // Orders are in data.orders
         currentOrders = data.orders || [];
         
         // Sort by date (most recent first)
@@ -33,42 +33,47 @@ async function loadOrders() {
 function displayOrders(orders) {
     const tableBody = document.getElementById('orders-table');
     
-    if (orders.length === 0) {
+    if (!orders || orders.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="10" class="text-center">No orders found</td></tr>';
         return;
     }
     
-    tableBody.innerHTML = orders.map(order => {
-        const orderId = order.order_id || order.id;
-        const totalAmount = order.total_amount || order.amount;
-        const itemsDisplay = order.items && order.items.length > 0
-            ? order.items.length === 1
-                ? `${order.items[0].product_name} (x${order.items[0].quantity})`
-                : `${order.items.length} items`
-            : order.product_name ? `${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}` : 'N/A';
-        
-        return `
-        <tr>
-            <td>#${orderId}</td>
-            <td>${order.buyer_name}</td>
-            <td>${order.buyer_phone || '7801833884'}</td>
-            <td>${order.delivery_address ? order.delivery_address.substring(0, 15) + '...' : 'N/A'}</td>
-            <td>${itemsDisplay}</td>
-            <td><strong>₹${totalAmount.toFixed(2)}</strong></td>
-            <td><span class="status-badge status-${getStatusClass(order.payment_status)}">${order.payment_status}</span></td>
-            <td><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></td>
-            <td>${formatDate(order.created_at)}</td>
-            <td>
-                <button class="btn btn-primary btn-sm" onclick="viewOrder(${orderId})">
-                    <i class="fas fa-eye"></i> View
-                </button>
-                <button class="btn btn-success btn-sm" onclick="openStatusModal(${orderId})">
-                    <i class="fas fa-edit"></i> Update
-                </button>
-            </td>
-        </tr>
-        `;
-    }).join('');
+    try {
+        tableBody.innerHTML = orders.map(order => {
+            const orderId = order.order_id || order.id;
+            const totalAmount = order.total_amount || order.amount || 0;
+            const itemsDisplay = order.items && order.items.length > 0
+                ? order.items.length === 1
+                    ? `${order.items[0].product_name} (x${order.items[0].quantity})`
+                    : `${order.items.length} items`
+                : order.product_name ? `${order.product_name}${order.quantity ? ` (x${order.quantity})` : ''}` : 'N/A';
+            
+            return `
+            <tr>
+                <td>#${orderId}</td>
+                <td>${order.buyer_name}</td>
+                <td>${order.buyer_phone}</td>
+                <td>${order.delivery_address ? order.delivery_address.substring(0, 15) + '...' : 'N/A'}</td>
+                <td>${itemsDisplay}</td>
+                <td><strong>₹${totalAmount.toFixed(2)}</strong></td>
+                <td><span class="status-badge status-${getStatusClass(order.payment_status || 'Pending')}">${order.payment_status || 'Pending'}</span></td>
+                <td><span class="status-badge status-${getStatusClass(order.order_status || 'Received')}">${order.order_status || 'Received'}</span></td>
+                <td>${formatDate(order.created_at)}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewOrder(${orderId})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="openStatusModal(${orderId})">
+                        <i class="fas fa-edit"></i> Update
+                    </button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error displaying orders:', error);
+        tableBody.innerHTML = '<tr><td colspan="10" class="text-center">Error displaying orders. Please refresh the page.</td></tr>';
+    }
 }
 
 // Filter Orders
@@ -93,13 +98,17 @@ function filterOrders(status) {
 
 // Update Order Stats
 function updateOrderStats() {
-    const receivedCount = currentOrders.filter(o => o.order_status === 'Received').length;
-    const confirmedCount = currentOrders.filter(o => o.order_status === 'Confirmed').length;
-    const deliveredCount = currentOrders.filter(o => o.order_status === 'Delivered').length;
-    
-    document.getElementById('pending-count').textContent = receivedCount;
-    document.getElementById('confirmed-count').textContent = confirmedCount;
-    document.getElementById('delivered-count').textContent = deliveredCount;
+    try {
+        const receivedCount = currentOrders.filter(o => o.order_status === 'Received').length;
+        const confirmedCount = currentOrders.filter(o => o.order_status === 'Confirmed').length;
+        const deliveredCount = currentOrders.filter(o => o.order_status === 'Delivered').length;
+        
+        document.getElementById('pending-count').textContent = receivedCount;
+        document.getElementById('confirmed-count').textContent = confirmedCount;
+        document.getElementById('delivered-count').textContent = deliveredCount;
+    } catch (error) {
+        console.error('Error updating order stats:', error);
+    }
 }
 
 // Get status CSS class
@@ -185,7 +194,7 @@ async function viewOrder(orderId) {
             </div>
             <div class="info-item">
                 <div class="info-label">Phone:</div>
-                <div class="info-value">${order.buyer_phone || '7801833884'}</div>
+                <div class="info-value">${order.buyer_phone}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Order Status:</div>

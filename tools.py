@@ -13,12 +13,13 @@ try:
     from firebase_db import (
         load_buyers_data,
         save_buyers_data,
-        load_sellers_data,
-        save_sellers_data,
+        load_seller_data,
+        save_seller_data,
         get_buyer,
         update_buyer,
         add_buyer_order,
-        update_buyer_cart
+        update_buyer_cart,
+        add_order
     )
     FIREBASE_ENABLED = True
 except ImportError:
@@ -38,10 +39,10 @@ def set_current_user(phone_number):
     current_user["phone_number"] = phone_number
 
 
-def load_sample_data():
+def load_sample_data(seller_id="1"):
     """Load data from sellers database (Firebase or JSON fallback)"""
     if FIREBASE_ENABLED:
-        return load_sellers_data()
+        return load_seller_data(seller_id)
     else:
         # JSON file fallback
         json_file_path = os.path.join('static', 'sellers_data.json')
@@ -89,38 +90,41 @@ if not FIREBASE_ENABLED:
             return False
 
 
-def get_company_info():
+def get_company_info(seller_id="1"):
     """
     Get company name and description.
     
     Returns:
         dict: Company information including name and description
     """
-    data = load_sample_data()
+    data = load_sample_data(seller_id)
     
-    if not data or not data.get('sellers'):
+    if not data or not data.get('company_info'):
         return {"error": "No company information found"}
     
-    seller = data['sellers'][0]  # Get first seller
+    company = data['company_info']
     
     return {
-        "company_name": seller.get('company_name', ''),
-        "company_description": seller.get('company_description', ''),
-        "owner_name": seller.get('owner_name', ''),
-        "phone": seller.get('phone', ''),
-        "email": seller.get('email', ''),
-        "address": seller.get('address', '')
+        "company_name": company.get('company_name', ''),
+        "company_description": company.get('company_description', ''),
+        "owner_name": company.get('owner_name', ''),
+        "phone": company.get('phone', ''),
+        "email": company.get('email', ''),
+        "address": company.get('address', '')
     }
 
 
-def get_product_catalog():
+def get_product_catalog(seller_id="1"):
     """
     Get all products with their details including description and price.
+    
+    Args:
+        seller_id (str): Seller ID to load products for (default: "1")
     
     Returns:
         list: List of products with id, title, description, and price
     """
-    data = load_sample_data()
+    data = load_sample_data(seller_id)
     
     if not data or not data.get('products'):
         return {"error": "No products found"}
@@ -137,17 +141,18 @@ def get_product_catalog():
     return products
 
 
-def get_product_by_id(product_id: int):
+def get_product_by_id(product_id: int, seller_id="1"):
     """
     Get specific product details by product ID.
     
     Args:
         product_id (int): The ID of the product
+        seller_id (str): Seller ID to load product from (default: "1")
         
     Returns:
         dict: Product information or error message
     """
-    data = load_sample_data()
+    data = load_sample_data(seller_id)
     
     if not data or not data.get('products'):
         return {"error": "No products found"}
@@ -273,7 +278,7 @@ def update_buyer_name(phone_number: str, new_name: str):
         }
 
 
-def add_to_cart(phone_number: str, product_id: int, quantity: int):
+def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="1"):
     """
     Add a product to buyer's cart or update quantity if already exists.
     
@@ -281,6 +286,7 @@ def add_to_cart(phone_number: str, product_id: int, quantity: int):
         phone_number (str): Buyer's phone number
         product_id (int): Product ID to add
         quantity (int): Quantity to add
+        seller_id (str): Seller ID to load product from (default: "1")
         
     Returns:
         dict: Success status and cart info
@@ -291,7 +297,7 @@ def add_to_cart(phone_number: str, product_id: int, quantity: int):
         return {"error": "Buyer profile not found"}
     
     # Get product details
-    seller_data = load_sample_data()
+    seller_data = load_sample_data(seller_id)
     product = None
     for p in seller_data.get('products', []):
         if p.get('id') == product_id:
@@ -449,7 +455,7 @@ def clear_cart(phone_number: str):
         return {"error": "Failed to clear cart"}
 
 
-def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float):
+def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float, seller_id="1"):
     """
     Place an order from buyer's cart (multi-item order).
     
@@ -458,6 +464,7 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
         delivery_address (str): Delivery address for the order
         delivery_lat (float): Latitude of delivery location
         delivery_lng (float): Longitude of delivery location
+        seller_id (str): Seller ID to place order with (default: "1")
         
     Returns:
         dict: Order confirmation with order details
@@ -475,13 +482,10 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
         return {"error": "Cart is empty. Please add items to cart first."}
     
     # Load seller data
-    seller_data = load_sample_data()
+    seller_data = load_sample_data(seller_id)
     
     if not seller_data:
         return {"error": "Unable to load seller data"}
-    
-    # Get seller_id (assuming single seller for now)
-    seller_id = 1
     
     # Generate order ID
     order_id = len(seller_data.get('orders', [])) + 1
@@ -495,7 +499,7 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
     # Create new multi-item order structure
     order = {
         "order_id": order_id,
-        "seller_id": seller_id,
+        "seller_id": int(seller_id) if seller_id.isdigit() else 1,
         "buyer_name": buyer.get('name'),
         "buyer_phone": buyer_phone,
         "delivery_address": delivery_address,
@@ -509,18 +513,18 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
     }
     
     # Save to seller database
-    if 'orders' not in seller_data:
-        seller_data['orders'] = []
-    seller_data['orders'].append(order)
-    
     if FIREBASE_ENABLED:
-        if not save_sellers_data(seller_data):
+        if not add_order(seller_id, order):
             return {
                 "error": "Order created but failed to save to seller DB",
                 "order_details": order
             }
     else:
         # JSON fallback
+        if 'orders' not in seller_data:
+            seller_data['orders'] = []
+        seller_data['orders'].append(order)
+        
         json_file_path = os.path.join('static', 'sellers_data.json')
         try:
             with open(json_file_path, 'w') as f:
@@ -556,18 +560,19 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
     }
 
 
-def calculate_order_total(product_id: int, quantity: int):
+def calculate_order_total(product_id: int, quantity: int, seller_id="1"):
     """
     Calculate the total cost for an order before placing it.
     
     Args:
         product_id (int): The ID of the product
         quantity (int): Number of items
+        seller_id (str): Seller ID to load product from (default: "1")
         
     Returns:
         dict: Price breakdown including unit price, quantity, and total
     """
-    data = load_sample_data()
+    data = load_sample_data(seller_id)
     
     if not data:
         return {"error": "Unable to load data"}
@@ -655,7 +660,7 @@ def browse_products(query: str) -> str:
     Args:
         query: User's request to see products
     """
-    catalog = get_product_catalog()
+    catalog = get_product_catalog(seller_id="1")
     return str(catalog)
 
 
@@ -698,7 +703,7 @@ def add_product_to_cart(product_id: str, quantity: str) -> str:
     """
     try:
         phone_number = current_user.get("phone_number")
-        result = add_to_cart(phone_number, int(product_id), int(quantity))
+        result = add_to_cart(phone_number, int(product_id), int(quantity), seller_id="1")
         return str(result)
     except Exception as e:
         return f"Error: {str(e)}"
@@ -769,7 +774,7 @@ def create_order(delivery_address: str, delivery_latitude: str, delivery_longitu
         lat = float(delivery_latitude)
         lng = float(delivery_longitude)
         
-        result = place_order(phone_number, delivery_address, lat, lng)
+        result = place_order(phone_number, delivery_address, lat, lng, seller_id="1")
         return str(result)
     except ValueError as e:
         return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."

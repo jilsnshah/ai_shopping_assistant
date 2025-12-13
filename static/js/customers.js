@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Customers
 async function loadCustomers() {
     try {
-        const response = await fetch('/static/sellers_data.json');
+        const response = await fetch('/api/data');
         const data = await response.json();
         
         // Extract unique customers from orders

@@ -1,28 +1,28 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 import os
 import json
 from datetime import datetime
 from whatsapp_msg import send_whatsapp_message
+from firebase_db import load_seller_data, save_seller_data, initialize_firebase
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
 
 # In-memory storage using dictionaries
-sellers = []
+company_info = {}
 products = []
 orders = []
 
-# Load data from JSON file
-def load_data_from_json():
-    global sellers, products, orders
-    
-    json_file_path = os.path.join('static', 'sellers_data.json')
+# Load data from Firebase for specific seller
+def load_data_from_firebase(seller_id):
+    global company_info, products, orders
     
     try:
-        with open(json_file_path, 'r') as f:
-            data = json.load(f)
-            
-        # Load sellers
-        sellers = data.get('sellers', [])
+        initialize_firebase()
+        data = load_seller_data(seller_id)
+        
+        # Load company info
+        company_info = data.get('company_info', {})
         
         # Load products
         products = data.get('products', [])
@@ -30,45 +30,43 @@ def load_data_from_json():
         # Load orders
         orders = data.get('orders', [])
         
-        print(f"✅ Data loaded successfully from {json_file_path}")
-        print(f"   - Sellers: {len(sellers)}")
+        print(f"✅ Data loaded successfully for seller {seller_id}")
         print(f"   - Products: {len(products)}")
         print(f"   - Orders: {len(orders)}")
         
-    except FileNotFoundError:
-        print(f"❌ Error: {json_file_path} not found!")
-    except json.JSONDecodeError as e:
-        print(f"❌ Error parsing JSON: {e}")
+    except Exception as e:
+        print(f"❌ Error loading from Firebase: {e}")
+        print(f"ℹ️  Initializing with empty data")
 
-# Save data to JSON file
-def save_data_to_json():
-    global sellers, products, orders
-    
-    json_file_path = os.path.join('static', 'sellers_data.json')
+# Save data to Firebase for specific seller
+def save_data_to_firebase(seller_id):
+    global company_info, products, orders
     
     try:
         data = {
-            'sellers': sellers,
+            'company_info': company_info,
             'products': products,
             'orders': orders
         }
         
-        with open(json_file_path, 'w') as f:
-            json.dump(data, f, indent=2)
+        result = save_seller_data(seller_id, data)
         
-        print(f"💾 Data saved successfully to {json_file_path}")
-        return True
+        if result:
+            print(f"💾 Data saved successfully for seller {seller_id}")
+        return result
     except Exception as e:
-        print(f"❌ Error saving to JSON: {e}")
+        print(f"❌ Error saving to Firebase: {e}")
         return False
 
-# Initialize data on startup
-load_data_from_json()
+# Initialize Firebase on startup
+initialize_firebase()
 
-# Reload data before each request to reflect any changes from the agent
+# Reload data before each request if seller is in session
 @app.before_request
 def reload_data():
-    load_data_from_json()
+    seller_id = session.get('seller_id')
+    if seller_id and request.endpoint not in ['login', 'static']:
+        load_data_from_firebase(seller_id)
 
 # Disable caching for all responses
 @app.after_request
@@ -81,46 +79,93 @@ def add_header(response):
 
 @app.route('/')
 def index():
+    if 'seller_id' not in session:
+        return render_template('login.html')
     return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        data = request.get_json()
+        seller_id = data.get('seller_id')
+        
+        if seller_id:
+            session['seller_id'] = str(seller_id)
+            load_data_from_firebase(seller_id)
+            return jsonify({'success': True, 'seller_id': seller_id}), 200
+        else:
+            return jsonify({'error': 'Seller ID is required'}), 400
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('seller_id', None)
+    return jsonify({'success': True}), 200
 
 @app.route('/company')
 def company():
+    if 'seller_id' not in session:
+        return render_template('login.html')
     return render_template('company.html')
 
 @app.route('/products')
 def products():
+    if 'seller_id' not in session:
+        return render_template('login.html')
     return render_template('products.html')
 
 @app.route('/orders')
 def orders():
+    if 'seller_id' not in session:
+        return render_template('login.html')
     return render_template('orders.html')
 
 @app.route('/customers')
 def customers():
+    if 'seller_id' not in session:
+        return render_template('login.html')
     return render_template('customers.html')
 
 
 # ===== API ENDPOINTS =====
 
+@app.route('/api/data', methods=['GET'])
+def get_all_data():
+    """Get all seller data (company_info, products, orders) for frontend"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        return jsonify({
+            'seller_id': seller_id,
+            'company_info': company_info,
+            'products': products,
+            'orders': orders
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/products', methods=['GET'])
 def get_products():
     """Get all products for a seller"""
     try:
-        seller_id = int(request.args.get('seller_id', 1))  # Default seller ID for MVP
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
         
         print(f"📦 GET /products request - seller_id: {seller_id}, total products: {len(products)}")
         
-        # Filter products by seller_id
-        seller_products = [p for p in products if p['seller_id'] == seller_id]
-        
-        print(f"   ✅ Returning {len(seller_products)} products for seller {seller_id}")
-        
         # Sort by created_at descending
-        seller_products.sort(key=lambda x: x['created_at'], reverse=True)
+        sorted_products = sorted(products, key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        print(f"   ✅ Returning {len(sorted_products)} products for seller {seller_id}")
         
         return jsonify({
-            'products': seller_products,
-            'count': len(seller_products)
+            'products': sorted_products,
+            'count': len(sorted_products)
         }), 200
         
     except Exception as e:
@@ -131,18 +176,19 @@ def get_products():
 def get_orders():
     """Get all orders for a seller"""
     try:
-        seller_id = int(request.args.get('seller_id', 1))
-        order_status = request.args.get('status')  # 'Received' or 'To Deliver'
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
         
-        # Filter orders by seller_id
-        seller_orders = [o for o in orders if o['seller_id'] == seller_id]
+        order_status = request.args.get('status')
         
         # Filter by order status if provided
+        seller_orders = orders
         if order_status:
-            seller_orders = [o for o in seller_orders if o['order_status'] == order_status]
+            seller_orders = [o for o in seller_orders if o.get('order_status') == order_status]
         
         # Sort by created_at descending
-        seller_orders.sort(key=lambda x: x['created_at'], reverse=True)
+        seller_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
         return jsonify({
             'orders': seller_orders,
@@ -157,24 +203,21 @@ def get_orders():
 def update_upi():
     """Update seller's UPI ID"""
     try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
         data = request.get_json()
-        seller_id = int(data.get('seller_id', 1))
         upi_id = data.get('upi_id', '')
         
         if not upi_id:
             return jsonify({'error': 'UPI ID is required'}), 400
         
-        # Find and update seller
-        seller_found = False
-        for seller in sellers:
-            if seller['id'] == seller_id:
-                seller['upi_id'] = upi_id
-                seller_found = True
-                break
+        # Update company info
+        company_info['upi_id'] = upi_id
         
-        if seller_found:
-            # Save to JSON file
-            save_data_to_json()
+        # Save to Firebase
+        save_data_to_firebase(seller_id)
         
         return jsonify({
             'message': 'UPI ID updated successfully',
@@ -189,65 +232,59 @@ def update_upi():
 def get_seller_info():
     """Get seller information including UPI ID"""
     try:
-        seller_id = int(request.args.get('seller_id', 1))
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
         
-        # Find seller by ID
-        seller = next((s for s in sellers if s['id'] == seller_id), None)
-        
-        if seller:
-            return jsonify({
-                'id': seller['id'],
-                'company_name': seller['company_name'],
-                'company_description': seller['company_description'],
-                'upi_id': seller['upi_id'] or '',
-                'email': seller['email'],
-                'phone': seller['phone']
-            }), 200
-        else:
-            return jsonify({'error': 'Seller not found'}), 404
+        return jsonify({
+            'id': seller_id,
+            'company_name': company_info.get('company_name', ''),
+            'company_description': company_info.get('company_description', ''),
+            'upi_id': company_info.get('upi_id', ''),
+            'email': company_info.get('email', ''),
+            'phone': company_info.get('phone', '')
+        }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/company', methods=['GET', 'POST'])
-def company_info():
+def company_info_route():
     """Get or update company information"""
     try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
         if request.method == 'GET':
-            seller_id = int(request.args.get('seller_id', 1))
-            seller = next((s for s in sellers if s['id'] == seller_id), None)
-            
-            if seller:
-                return jsonify({
-                    'name': seller['company_name'],
-                    'email': seller['email'],
-                    'phone': seller['phone'],
-                    'address': seller['address'],
-                    'description': seller['company_description']
-                }), 200
-            else:
-                return jsonify({'error': 'Seller not found'}), 404
+            return jsonify({
+                'name': company_info.get('company_name', ''),
+                'email': company_info.get('email', ''),
+                'phone': company_info.get('phone', ''),
+                'address': company_info.get('address', ''),
+                'description': company_info.get('company_description', '')
+            }), 200
         
         elif request.method == 'POST':
             data = request.get_json()
-            seller_id = int(data.get('seller_id', 1))
             
-            # Find and update seller
-            for seller in sellers:
-                if seller['id'] == seller_id:
-                    seller['company_name'] = data.get('name', seller['company_name'])
-                    seller['email'] = data.get('email', seller['email'])
-                    seller['phone'] = data.get('phone', seller['phone'])
-                    seller['address'] = data.get('address', seller['address'])
-                    seller['company_description'] = data.get('description', seller['company_description'])
-                    
-                    # Save to JSON
-                    save_data_to_json()
-                    
-                    return jsonify({'message': 'Company information updated successfully'}), 200
+            # Update company info
+            company_info['company_name'] = data.get('company_name', company_info.get('company_name', ''))
+            company_info['email'] = data.get('email', company_info.get('email', ''))
+            company_info['phone'] = data.get('phone', company_info.get('phone', ''))
+            company_info['address'] = data.get('address', company_info.get('address', ''))
+            company_info['city'] = data.get('city', company_info.get('city', ''))
+            company_info['state'] = data.get('state', company_info.get('state', ''))
+            company_info['pincode'] = data.get('pincode', company_info.get('pincode', ''))
+            company_info['country'] = data.get('country', company_info.get('country', ''))
+            company_info['upi_id'] = data.get('upi_id', company_info.get('upi_id', ''))
+            company_info['company_description'] = data.get('company_description', company_info.get('company_description', ''))
             
-            return jsonify({'error': 'Seller not found'}), 404
+            # Save to Firebase
+            save_data_to_firebase(seller_id)
+            
+            return jsonify({'message': 'Company information updated successfully'}), 200
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -259,12 +296,16 @@ def update_delete_product(product_id):
     global products
     
     try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
         if request.method == 'PUT':
             data = request.get_json()
             
             # Find and update product
             for product in products:
-                if product['id'] == product_id:
+                if product.get('id') == product_id:
                     product['title'] = data.get('title', product['title'])
                     product['description'] = data.get('description', product['description'])
                     product['price'] = float(data.get('price', product['price']))
@@ -272,8 +313,8 @@ def update_delete_product(product_id):
                     product['stock_quantity'] = int(data.get('stock_quantity', product.get('stock_quantity', 0)))
                     product['image_url'] = data.get('image_url', product.get('image_url', ''))
                     
-                    # Save to JSON
-                    save_data_to_json()
+                    # Save to Firebase
+                    save_data_to_firebase(seller_id)
                     
                     return jsonify({'message': 'Product updated successfully', 'product': product}), 200
             
@@ -281,10 +322,10 @@ def update_delete_product(product_id):
         
         elif request.method == 'DELETE':
             # Find and remove product
-            products = [p for p in products if p['id'] != product_id]
+            products = [p for p in products if p.get('id') != product_id]
             
-            # Save to JSON
-            save_data_to_json()
+            # Save to Firebase
+            save_data_to_firebase(seller_id)
             
             return jsonify({'message': 'Product deleted successfully'}), 200
             
@@ -296,14 +337,17 @@ def update_delete_product(product_id):
 def create_product():
     """Create a new product"""
     try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
         data = request.get_json()
         
         # Generate new product ID
-        new_id = max([p['id'] for p in products], default=0) + 1
+        new_id = max([p.get('id', 0) for p in products], default=0) + 1
         
         product = {
             'id': new_id,
-            'seller_id': int(data.get('seller_id', 1)),
             'title': data['title'],
             'description': data.get('description', ''),
             'price': float(data['price']),
@@ -315,8 +359,8 @@ def create_product():
         
         products.append(product)
         
-        # Save to JSON
-        save_data_to_json()
+        # Save to Firebase
+        save_data_to_firebase(seller_id)
         
         return jsonify({'message': 'Product created successfully', 'product': product}), 201
         
@@ -328,11 +372,15 @@ def create_product():
 def update_order(order_id):
     """Update order status"""
     try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
         data = request.get_json()
         
         # Find and update order
         for order in orders:
-            if order['id'] == order_id:
+            if order.get('order_id') == order_id or order.get('id') == order_id:
                 # Track if order status or payment status changed
                 old_order_status = order.get('order_status')
                 old_payment_status = order.get('payment_status')
@@ -360,8 +408,8 @@ def update_order(order_id):
                 if 'delivery_lng' in data:
                     order['delivery_lng'] = data['delivery_lng']
                 
-                # Save to JSON
-                save_data_to_json()
+                # Save to Firebase
+                save_data_to_firebase(seller_id)
                 
                 buyer_phone = order.get('buyer_phone')
                 
@@ -387,11 +435,9 @@ def update_order(order_id):
                 if payment_status_changed and new_payment_status == "Requested" and buyer_phone:
                     product_name = order.get('product_name', 'your order')
                     amount = order.get('amount', 0)
-                    seller_id = order.get('seller_id', 1)
                     
-                    # Get seller's UPI ID
-                    seller = next((s for s in sellers if s['id'] == seller_id), None)
-                    upi_id = seller.get('upi_id', '') if seller else ''
+                    # Get seller's UPI ID from company_info
+                    upi_id = company_info.get('upi_id', '')
                     
                     if upi_id:
                         message = (

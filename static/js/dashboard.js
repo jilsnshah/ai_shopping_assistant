@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Dashboard Statistics
 async function loadDashboardStats() {
     try {
-        // Load sample data
-        const response = await fetch('/static/sellers_data.json');
+        // Load data from Firebase via API
+        const response = await fetch('/api/data');
         const data = await response.json();
         
         // Calculate stats
@@ -19,7 +19,7 @@ async function loadDashboardStats() {
         let totalRevenue = 0;
         data.orders.forEach(order => {
             if (order.order_status !== 'Cancelled') {
-                totalRevenue += order.amount || 0;
+                totalRevenue += order.total_amount || order.amount || 0;
             }
         });
         
@@ -41,7 +41,7 @@ async function loadDashboardStats() {
 // Load Recent Orders
 async function loadRecentOrders() {
     try {
-        const response = await fetch('/static/sellers_data.json');
+        const response = await fetch('/api/data');
         const data = await response.json();
         
         const tableBody = document.getElementById('recent-orders-table');
@@ -60,10 +60,10 @@ async function loadRecentOrders() {
         
         tableBody.innerHTML = recentOrders.map(order => `
             <tr>
-                <td>#${order.id}</td>
+                <td>#${order.order_id || order.id}</td>
                 <td>${order.buyer_name}</td>
-                <td>${order.delivery_address ? order.delivery_address.substring(0, 20) + '...' : 'N/A'}</td>
-                <td>₹${order.amount.toFixed(2)}</td>
+                <td>${order.delivery_address ? order.delivery_address.substring(0, 20) + '...' : ''}</td>
+                <td>₹${(order.total_amount || order.amount || 0).toFixed(2)}</td>
                 <td><span class="status-badge status-${getStatusClass(order.order_status)}">${order.order_status}</span></td>
                 <td>${formatDate(order.created_at)}</td>
             </tr>

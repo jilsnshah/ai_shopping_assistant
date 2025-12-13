@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load Products
 async function loadProducts() {
     try {
-        const response = await fetch('/static/sellers_data.json');
+        const response = await fetch('/api/data');
         const data = await response.json();
         currentProducts = data.products || [];
         
