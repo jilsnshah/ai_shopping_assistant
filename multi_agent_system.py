@@ -29,14 +29,22 @@ from tools import (
     get_my_orders
 )
 
-# Import PostgreSQL checkpointer for persistent memory
+# Import PostgreSQL checkpointer for persistent memory (Google Cloud SQL)
 try:
-    from postgres_checkpointer import get_postgres_checkpointer
+    from langgraph.checkpoint.postgres import PostgresSaver
     POSTGRES_MEMORY_ENABLED = True
 except ImportError:
     print("Warning: PostgreSQL checkpointer not available. Falling back to in-memory.")
     from langgraph.checkpoint.memory import InMemorySaver
     POSTGRES_MEMORY_ENABLED = False
+
+# Cloud SQL connection string
+DB_HOST = "34.55.153.221"
+DB_PORT = "5432"
+DB_USER = "postgres"
+DB_PASS = "PostgresAdmin2024"
+DB_NAME = "langgraph"
+DB_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
 # ==================== MEMORY MANAGEMENT ====================
@@ -247,9 +255,23 @@ When a customer wants to order:
 
 Remember: You're chatting with customers via WhatsApp, so be conversational and helpful like a real store assistant! 🌟"""
 
-    # Create PostgreSQL checkpointer for persistent conversation memory
+    # Create PostgreSQL checkpointer for persistent conversation memory (Google Cloud SQL)
     if POSTGRES_MEMORY_ENABLED:
-        checkpointer = get_postgres_checkpointer()
+        try:
+            # Initialize checkpointer with Cloud SQL connection string
+            # The context manager needs to stay open, so we use sync_connection
+            import psycopg
+            from psycopg.rows import dict_row
+            
+            conn = psycopg.connect(DB_URI, autocommit=True, row_factory=dict_row)
+            checkpointer = PostgresSaver(conn)
+            checkpointer.setup()  # Creates required tables
+            print("✓ PostgreSQL checkpointer initialized (Google Cloud SQL)")
+        except Exception as e:
+            print(f"⚠ PostgreSQL initialization failed: {e}")
+            print("  Falling back to in-memory storage")
+            from langgraph.checkpoint.memory import InMemorySaver
+            checkpointer = InMemorySaver()
     else:
         from langgraph.checkpoint.memory import InMemorySaver
         checkpointer = InMemorySaver()
