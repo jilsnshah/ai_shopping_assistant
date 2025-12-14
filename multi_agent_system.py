@@ -3,6 +3,9 @@ Simple LangChain Agent for Shopping Assistant
 Uses @tool decorator and create_agent with PostgreSQL-backed memory (Google Cloud SQL)
 """
 
+
+from dotenv import load_dotenv
+load_dotenv()
 from langchain.agents import create_agent, AgentState
 from langchain.agents.middleware import before_model
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -88,7 +91,7 @@ def create_shopping_agent(gemini_api_key):
     
     # Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash",
         temperature=0.7,
         google_api_key=gemini_api_key
     )

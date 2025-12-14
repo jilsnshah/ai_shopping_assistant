@@ -3,6 +3,9 @@ Tool Functions for AI Shopping Assistant
 This file contains all the functions that will be used as tools by the LangChain agent.
 """
 
+
+from dotenv import load_dotenv
+load_dotenv()
 import json
 import os
 from datetime import datetime

@@ -1,3 +1,6 @@
+
+from dotenv import load_dotenv
+load_dotenv()
 # -*- coding: utf-8 -*-
 """Simple test of the WhatsApp agent with PostgreSQL"""
 

@@ -3,6 +3,9 @@ Firebase Realtime Database Integration
 Handles all database operations for buyers, sellers, and agent memory
 """
 
+
+from dotenv import load_dotenv
+load_dotenv()
 import firebase_admin
 from firebase_admin import credentials, db
 import json
