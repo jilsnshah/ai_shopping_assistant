@@ -34,7 +34,7 @@ WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "EAAfpkV7ZALgEBQKgyXW
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "12345")  # Your Meta webhook verify token
 
 # Gemini API Configuration
-GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyCZj_0vyunXRZ49B6AUhvqcRTnLytXtpno")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyCZj_0vyunXRZ49B6AUhvqcRTnLytXtpno")
 
 # Initialize multi-agent orchestrator
 orchestrator = None
@@ -318,52 +318,47 @@ def webhook_callback():
     """
     try:
         data = request.get_json()
-        print(f"\n📥 Received webhook data: {json.dumps(data, indent=2)}\n")
-        
-        # Check if it's a WhatsApp message
+        # Print a summary instead of the full payload
         if data.get("object") == "whatsapp_business_account":
             entries = data.get("entry", [])
-            
             for entry in entries:
                 changes = entry.get("changes", [])
-                
                 for change in changes:
                     value = change.get("value", {})
-                    
-                    # Check if there are messages
-                    messages = value.get("messages", [])
-                    
-                    for message in messages:
-                        # Get message details
-                        from_number = message.get("from")
-                        message_type = message.get("type")
-                        
-                        # Process text messages
-                        if message_type == "text":
-                            message_text = message.get("text", {}).get("body", "")
-                            
-                            # Process the message with the AI agent
-                            agent_response = process_whatsapp_message(from_number, message_text)
-                            
-                            # Send response back via WhatsApp
-                            send_whatsapp_message(from_number, agent_response)
-                        
-                        # Process location messages
-                        elif message_type == "location":
-                            location_data = message.get("location", {})
-                            latitude = location_data.get("latitude")
-                            longitude = location_data.get("longitude")
-                            
-                            # Convert location to text format
-                            location_text = f"[location] : latitude: {latitude}, longitude: {longitude}"
-                            
-                            print(f"📍 Location received from {from_number}: {location_text}")
-                            
-                            # Process the location as a text message with the AI agent
-                            agent_response = process_whatsapp_message(from_number, location_text)
-                            
-                            # Send response back via WhatsApp
-                            send_whatsapp_message(from_number, agent_response)
+                    if "messages" in value:
+                        messages = value.get("messages", [])
+                        for message in messages:
+                            print(f"📥 Incoming message from {message.get('from')}: type={message.get('type')}")
+                    elif "statuses" in value:
+                        statuses = value.get("statuses", [])
+                        for status in statuses:
+                            print(f"🔄 Status update: id={status.get('id')}, status={status.get('status')}, recipient={status.get('recipient_id')}")
+        
+        # Only process incoming user messages (not status updates)
+        if data.get("object") == "whatsapp_business_account":
+            entries = data.get("entry", [])
+            for entry in entries:
+                changes = entry.get("changes", [])
+                for change in changes:
+                    value = change.get("value", {})
+                    # Only process if there is a 'messages' key (not 'statuses')
+                    if "messages" in value:
+                        messages = value.get("messages", [])
+                        for message in messages:
+                            from_number = message.get("from")
+                            message_type = message.get("type")
+                            if message_type == "text":
+                                message_text = message.get("text", {}).get("body", "")
+                                agent_response = process_whatsapp_message(from_number, message_text)
+                                send_whatsapp_message(from_number, agent_response)
+                            elif message_type == "location":
+                                location_data = message.get("location", {})
+                                latitude = location_data.get("latitude")
+                                longitude = location_data.get("longitude")
+                                location_text = f"[location] : latitude: {latitude}, longitude: {longitude}"
+                                print(f"📍 Location received from {from_number}: {location_text}")
+                                agent_response = process_whatsapp_message(from_number, location_text)
+                                send_whatsapp_message(from_number, agent_response)
         
         return jsonify({"status": "success"}), 200
         
