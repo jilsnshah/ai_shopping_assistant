@@ -5,3 +5,7 @@ cloud-sql-python-connector[pg8000]
 sqlalchemy
 langgraph-checkpoint-postgres
 python-dotenv
+google-auth
+requests
+razorpay
+

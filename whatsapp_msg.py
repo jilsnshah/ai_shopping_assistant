@@ -216,6 +216,79 @@ def send_whatsapp_message(phone_number: str, message: str):
         return None
 
 
+def send_whatsapp_media(phone_number: str, media_file, caption: str = ""):
+    """
+    Upload and send media (PDF document) via WhatsApp Business API
+    
+    Args:
+        phone_number: Recipient phone number (with country code)
+        media_file: File object or file path to upload
+        caption: Optional caption text to accompany the media
+    
+    Returns:
+        dict: Response from WhatsApp API or None if failed
+    """
+    try:
+        # Step 1: Upload media to WhatsApp servers
+        upload_url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/media"
+        
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}"
+        }
+        
+        # Prepare file for upload
+        if hasattr(media_file, 'read'):
+            # It's a file object
+            files = {
+                'file': ('invoice.pdf', media_file, 'application/pdf'),
+                'messaging_product': (None, 'whatsapp')
+            }
+        else:
+            # It's a file path
+            with open(media_file, 'rb') as f:
+                files = {
+                    'file': ('invoice.pdf', f, 'application/pdf'),
+                    'messaging_product': (None, 'whatsapp')
+                }
+        
+        print(f"📤 Uploading media to WhatsApp...")
+        upload_response = requests.post(upload_url, headers=headers, files=files)
+        upload_response.raise_for_status()
+        
+        media_id = upload_response.json().get('id')
+        print(f"✅ Media uploaded successfully. Media ID: {media_id}")
+        
+        # Step 2: Send media message with the media_id
+        send_url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+        
+        headers["Content-Type"] = "application/json"
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone_number,
+            "type": "document",
+            "document": {
+                "id": media_id,
+                "caption": caption,
+                "filename": "invoice.pdf"
+            }
+        }
+        
+        print(f"📨 Sending media message to {phone_number}...")
+        send_response = requests.post(send_url, headers=headers, json=payload)
+        send_response.raise_for_status()
+        
+        print(f"✅ Media message sent successfully to {phone_number}")
+        return send_response.json()
+        
+    except Exception as e:
+        print(f"❌ Error sending media: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 # Name collection agents cache (phone_number -> agent)
 name_collection_agents = {}
 

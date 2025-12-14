@@ -1,0 +1,105 @@
+import React, { useEffect, useState } from 'react';
+import { CreditCard, Wallet, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import api from '../api/axios';
+import { motion } from 'framer-motion';
+
+const StatCard = ({ title, value, icon: Icon, colorClass }) => (
+    <motion.div
+        whileHover={{ y: -5 }}
+        className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-6 rounded-2xl relative overflow-hidden group"
+    >
+        <div className="flex justify-between items-start mb-4">
+            <div className={`p-3 rounded-xl ${colorClass}`}>
+                <Icon className="w-6 h-6 text-white" />
+            </div>
+        </div>
+        <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
+        <p className="text-3xl font-bold text-white mt-1">{value}</p>
+    </motion.div>
+);
+
+export default function Payments() {
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        collected: 0,
+        pending: 0,
+        total: 0
+    });
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            const res = await api.get('/orders');
+            const orders = res.data.orders || [];
+
+            const collected = orders
+                .filter(o => o.payment_status === 'Completed')
+                .reduce((acc, o) => acc + (o.total_amount || 0), 0);
+
+            const pending = orders
+                .filter(o => ['Pending', 'Requested', 'Verified'].includes(o.payment_status))
+                .reduce((acc, o) => acc + (o.total_amount || 0), 0);
+
+            setStats({
+                collected,
+                pending,
+                total: collected + pending
+            });
+        } catch (error) {
+            console.error("Failed to fetch payment data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    if (loading) return <div className="text-white">Loading...</div>;
+
+    return (
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-3xl font-bold text-white">Payments</h1>
+                <p className="text-slate-400 mt-1">Track transaction history and settlements</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                    title="Revenue Collected"
+                    value={formatCurrency(stats.collected)}
+                    icon={CheckCircle}
+                    colorClass="bg-emerald-500/20 text-emerald-500"
+                />
+                <StatCard
+                    title="Revenue to be Collected"
+                    value={formatCurrency(stats.pending)}
+                    icon={Clock}
+                    colorClass="bg-yellow-500/20 text-yellow-500"
+                />
+                <StatCard
+                    title="Total Revenue Potential"
+                    value={formatCurrency(stats.total)}
+                    icon={Wallet}
+                    colorClass="bg-indigo-500/20 text-indigo-500"
+                />
+            </div>
+
+            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8">
+                <h2 className="text-lg font-semibold text-white mb-4">Payment Overview</h2>
+                <p className="text-slate-400">
+                    Your payment summary is calculated based on order statuses.
+                    Mark orders as <strong>Completed</strong> to move them to "Revenue Collected".
+                </p>
+            </div>
+        </div>
+    );
+}

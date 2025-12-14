@@ -12,6 +12,25 @@ import json
 import os
 from datetime import datetime
 
+def sanitize_email_for_firebase(email):
+    """
+    Sanitize email to be used as Firebase path key.
+    Firebase doesn't allow . $ # [ ] / characters in keys.
+    """
+    if not email:
+        return email
+    # Replace special characters with safe alternatives
+    sanitized = email.replace('.', '_dot_').replace('@', '_at_').replace('/', '_slash_')
+    return sanitized
+
+def unsanitize_email(sanitized_email):
+    """
+    Convert sanitized email back to original format.
+    """
+    if not sanitized_email:
+        return sanitized_email
+    return sanitized_email.replace('_dot_', '.').replace('_at_', '@').replace('_slash_', '/')
+
 
 # Initialize Firebase (only once)
 _firebase_initialized = False
@@ -162,7 +181,9 @@ def load_seller_data(seller_id):
     """
     try:
         initialize_firebase()
-        seller_ref = db.reference(f'sellers/{seller_id}')
+        # Sanitize email for Firebase path (emails contain . and @ which are not allowed)
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        seller_ref = db.reference(f'sellers/{safe_seller_id}')
         data = seller_ref.get()
         
         if data is None:
@@ -214,7 +235,9 @@ def save_seller_data(seller_id, seller_data):
     """
     try:
         initialize_firebase()
-        seller_ref = db.reference(f'sellers/{seller_id}')
+        # Sanitize email for Firebase path (emails contain . and @ which are not allowed)
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        seller_ref = db.reference(f'sellers/{safe_seller_id}')
         seller_ref.set(seller_data)
         return True
     except Exception as e:
@@ -260,7 +283,8 @@ def update_order_status(seller_id, order_id, order_status=None, payment_status=N
     """Update order status in Firebase for specific seller"""
     try:
         initialize_firebase()
-        orders_ref = db.reference(f'sellers/{seller_id}/orders')
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/orders')
         orders = orders_ref.get() or []
         
         for i, order in enumerate(orders):
@@ -276,6 +300,94 @@ def update_order_status(seller_id, order_id, order_status=None, payment_status=N
     except Exception as e:
         print(f"Error updating order status in Firebase: {e}")
         return False
+
+
+# ==================== RAZORPAY INTEGRATION ====================
+
+def save_razorpay_credentials(seller_id, api_key, api_secret, enabled=True):
+    """
+    Save Razorpay credentials to Firebase
+    
+    Args:
+        seller_id (str): Seller ID
+        api_key (str): Razorpay API key
+        api_secret (str): Razorpay API secret
+        enabled (bool): Whether Razorpay is enabled
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        credentials_ref = db.reference(f'sellers/{safe_seller_id}/razorpay_credentials')
+        
+        credentials = {
+            'api_key': api_key,
+            'api_secret': api_secret,
+            'enabled': enabled
+        }
+        
+        credentials_ref.set(credentials)
+        print(f"✅ Razorpay credentials saved for seller {seller_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving Razorpay credentials: {e}")
+        return False
+
+
+def get_razorpay_credentials(seller_id):
+    """
+    Get Razorpay credentials from Firebase
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        dict: Credentials dict with 'api_key', 'api_secret', 'enabled' or None
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        credentials_ref = db.reference(f'sellers/{safe_seller_id}/razorpay_credentials')
+        credentials = credentials_ref.get()
+        return credentials
+    except Exception as e:
+        print(f"❌ Error getting Razorpay credentials: {e}")
+        return None
+
+
+def update_order_payment_link(seller_id, order_id, payment_link_id):
+    """
+    Update order with Razorpay payment link ID
+    
+    Args:
+        seller_id (str): Seller ID
+        order_id (int): Order ID
+        payment_link_id (str): Razorpay payment link ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/orders')
+        orders = orders_ref.get() or []
+        
+        for i, order in enumerate(orders):
+            if order.get('order_id') == order_id or order.get('id') == order_id:
+                orders[i]['payment_link_id'] = payment_link_id
+                orders_ref.set(orders)
+                print(f"✅ Payment link ID saved for order {order_id}")
+                return True
+        
+        print(f"⚠️ Order {order_id} not found")
+        return False
+    except Exception as e:
+        print(f"❌ Error updating order payment link: {e}")
+        return False
+
 
 
 # ==================== AGENT MEMORY ====================
