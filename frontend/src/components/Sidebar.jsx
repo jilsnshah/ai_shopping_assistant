@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Package, ShoppingCart, Users, CreditCard, Settings, Workflow, LogOut } from 'lucide-react';
+import { LayoutDashboard, Building2, Package, ShoppingCart, Users, CreditCard, RefreshCcw, Settings, Workflow, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import { ToastContainer } from './Toast';
@@ -13,6 +13,7 @@ const sidebarItems = [
     { icon: ShoppingCart, label: 'Orders', path: '/orders', enabled: true },
     { icon: Users, label: 'Customers', path: '/customers', enabled: true },
     { icon: CreditCard, label: 'Payments', path: '/payments', enabled: true },
+    { icon: RefreshCcw, label: 'Cancellations', path: '/cancellations', enabled: true },
     { icon: Workflow, label: 'Automation', path: '/automation', enabled: false },
     { icon: Settings, label: 'Integrations', path: '/integrations', enabled: false },
 ];

@@ -573,6 +573,77 @@ def reject_cancellation_request(seller_id, order_id):
         return None
 
 
+def request_order_cancellation(order_id):
+    """
+    Request cancellation for an order by adding it to seller's cancellation list.
+    This is called when a buyer wants to cancel their order.
+    
+    Args:
+        order_id (int): Order ID to cancel
+        
+    Returns:
+        dict: Result with 'success' and 'message' keys
+    """
+    try:
+        initialize_firebase()
+        
+        # First, find which seller this order belongs to
+        sellers_ref = db.reference('sellers')
+        all_sellers = sellers_ref.get() or {}
+        
+        seller_id_found = None
+        order_found = None
+        
+        # Search through all sellers to find the order
+        for seller_id, seller_data in all_sellers.items():
+            orders = seller_data.get('orders', [])
+            for order in orders:
+                if order.get('order_id') == order_id or order.get('id') == order_id:
+                    seller_id_found = seller_id
+                    order_found = order
+                    break
+            if order_found:
+                break
+        
+        if not order_found:
+            print(f"⚠️ Order {order_id} not found")
+            return {
+                'success': False,
+                'message': f'Order with ID {order_id} not found'
+            }
+        
+        # Add order ID to seller's cancellation list
+        cancellation_ref = db.reference(f'sellers/{seller_id_found}/cancellation')
+        cancellation_order_ids = cancellation_ref.get() or []
+        
+        # Check if already requested
+        if order_id in cancellation_order_ids:
+            return {
+                'success': True,
+                'message': f'Cancellation for order #{order_id} has already been requested',
+                'already_requested': True
+            }
+        
+        # Add to cancellation list
+        cancellation_order_ids.append(order_id)
+        cancellation_ref.set(cancellation_order_ids)
+        
+        print(f"✅ Cancellation requested for order {order_id}, seller {seller_id_found}")
+        return {
+            'success': True,
+            'message': f'Cancellation request submitted for order #{order_id}. The seller will review your request and get back to you soon.',
+            'order_id': order_id,
+            'seller_id': seller_id_found
+        }
+        
+    except Exception as e:
+        print(f"❌ Error requesting order cancellation: {e}")
+        return {
+            'success': False,
+            'message': f'Failed to submit cancellation request: {str(e)}'
+        }
+
+
 # ==================== AGENT MEMORY ====================
 
 def get_agent_memory_ref():

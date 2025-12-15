@@ -22,7 +22,8 @@ try:
         update_buyer,
         add_buyer_order,
         update_buyer_cart,
-        add_order
+        add_order,
+        request_order_cancellation
     )
     FIREBASE_ENABLED = True
 except ImportError:
@@ -832,6 +833,48 @@ def get_my_orders(query: str) -> str:
     
     
     return orders_summary
+
+
+@tool
+def request_cancellation(order_id: str) -> str:
+    """Request cancellation for an order. Use this when user wants to cancel their order.
+    This will notify the seller about the cancellation request.
+    
+    Args:
+        order_id: The order ID to cancel (e.g., "1", "12", "5")
+    """
+    try:
+        if not FIREBASE_ENABLED:
+            return "Error: Cancellation feature requires Firebase connection"
+        
+        # Convert order_id to int
+        order_id_int = int(order_id)
+        
+        # Request cancellation
+        result = request_order_cancellation(order_id_int)
+        
+        if result.get('success'):
+            return str({
+                'success': True,
+                'message': result.get('message'),
+                'order_id': order_id_int
+            })
+        else:
+            return str({
+                'success': False,
+                'error': result.get('message')
+            })
+            
+    except ValueError:
+        return str({
+            'success': False,
+            'error': 'Invalid order ID format. Please provide a valid order number.'
+        })
+    except Exception as e:
+        return str({
+            'success': False,
+            'error': f'Error processing cancellation request: {str(e)}'
+        })
 
 
 # ==================== TEST FUNCTIONS ====================
