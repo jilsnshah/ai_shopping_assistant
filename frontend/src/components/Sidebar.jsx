@@ -1,17 +1,20 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, Package, ShoppingCart, Users, CreditCard, Settings, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Building2, Package, ShoppingCart, Users, CreditCard, Settings, Workflow, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
+import { ToastContainer } from './Toast';
+import { useToast } from '../hooks/useToast';
 
 const sidebarItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Building2, label: 'Company Info', path: '/company' },
-    { icon: Package, label: 'Products', path: '/products' },
-    { icon: ShoppingCart, label: 'Orders', path: '/orders' },
-    { icon: Users, label: 'Customers', path: '/customers' },
-    { icon: CreditCard, label: 'Payments', path: '/payments' },
-    { icon: Settings, label: 'Integrations', path: '/integrations' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/', enabled: true },
+    { icon: Building2, label: 'Company Info', path: '/company', enabled: true },
+    { icon: Package, label: 'Products', path: '/products', enabled: true },
+    { icon: ShoppingCart, label: 'Orders', path: '/orders', enabled: true },
+    { icon: Users, label: 'Customers', path: '/customers', enabled: true },
+    { icon: CreditCard, label: 'Payments', path: '/payments', enabled: true },
+    { icon: Workflow, label: 'Automation', path: '/automation', enabled: false },
+    { icon: Settings, label: 'Integrations', path: '/integrations', enabled: false },
 ];
 
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +23,8 @@ import { googleLogout } from '@react-oauth/google';
 
 export function Sidebar() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { toasts, removeToast, info } = useToast();
 
     const handleLogout = async () => {
         try {
@@ -33,8 +38,17 @@ export function Sidebar() {
         }
     };
 
+    const handleItemClick = (e, item) => {
+        if (!item.enabled) {
+            e.preventDefault();
+            info(`${item.label} - Coming Soon! 🚀`);
+        }
+    };
+
     return (
         <div className="h-screen w-64 bg-slate-950 border-r border-slate-800 flex flex-col fixed left-0 top-0">
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+
             <div className="p-6 border-b border-slate-800">
                 {/* ... header ... */}
                 <div className="flex items-center gap-3">
@@ -48,33 +62,38 @@ export function Sidebar() {
             </div>
 
             <nav className="flex-1 p-4 space-y-2">
-                {sidebarItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            cn(
+                {sidebarItems.map((item) => {
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={(e) => handleItemClick(e, item)}
+                            className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
                                 isActive
                                     ? "bg-slate-900 text-white"
-                                    : "text-slate-400 hover:text-white hover:bg-slate-900/50"
-                            )
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeTab"
-                                        className="absolute left-0 w-1 h-8 bg-indigo-500 rounded-r-full"
-                                    />
-                                )}
-                                <item.icon className={cn("w-5 h-5", isActive ? "text-indigo-400" : "group-hover:text-indigo-400")} />
-                                <span className="font-medium">{item.label}</span>
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                                    : "text-slate-400 hover:text-white hover:bg-slate-900/50",
+                                !item.enabled && "opacity-60"
+                            )}
+                        >
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute left-0 w-1 h-8 bg-indigo-500 rounded-r-full"
+                                />
+                            )}
+                            <item.icon className={cn("w-5 h-5", isActive ? "text-indigo-400" : "group-hover:text-indigo-400")} />
+                            <span className="font-medium">{item.label}</span>
+                            {!item.enabled && (
+                                <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                                    Soon
+                                </span>
+                            )}
+                        </NavLink>
+                    );
+                })}
             </nav>
 
             <div className="p-4 border-t border-slate-800">

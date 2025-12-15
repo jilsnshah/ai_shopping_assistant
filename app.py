@@ -747,6 +747,63 @@ def update_order(order_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ===== WORKFLOW AUTOMATION ENDPOINTS =====
+
+@app.route('/api/workflow', methods=['GET', 'POST'])
+def workflow_automation():
+    """Get or update workflow automation configuration"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        if request.method == 'GET':
+            # Load workflow configuration from Firebase
+            from firebase_db import get_workflow_config
+            workflow_config = get_workflow_config(seller_id)
+            
+            if workflow_config:
+                return jsonify(workflow_config), 200
+            else:
+                # Return default workflow if none exists
+                return jsonify({
+                    'blocks': [
+                        'order_created',
+                        'order_accepted',
+                        'request_payment',
+                        'pause_until_payment',
+                        'order_prepared',
+                        'order_out_for_delivery',
+                        'order_delivered'
+                    ]
+                }), 200
+        
+        elif request.method == 'POST':
+            data = request.get_json()
+            blocks = data.get('blocks', [])
+            
+            # Validate blocks
+            if not isinstance(blocks, list):
+                return jsonify({'error': 'Blocks must be a list'}), 400
+            
+            # Save workflow configuration to Firebase
+            from firebase_db import save_workflow_config
+            workflow_config = {'blocks': blocks}
+            result = save_workflow_config(seller_id, workflow_config)
+            
+            if result:
+                return jsonify({
+                    'message': 'Workflow configuration saved successfully',
+                    'blocks': blocks
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to save workflow'}), 500
+                
+    except Exception as e:
+        print(f"Workflow automation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ===== RAZORPAY INTEGRATION ENDPOINTS =====
 
 @app.route('/api/razorpay/credentials', methods=['POST'])

@@ -389,6 +389,51 @@ def update_order_payment_link(seller_id, order_id, payment_link_id):
         return False
 
 
+# ==================== WORKFLOW AUTOMATION ====================
+
+def save_workflow_config(seller_id, workflow_config):
+    """
+    Save workflow automation configuration to Firebase
+    
+    Args:
+        seller_id (str): Seller ID
+        workflow_config (dict): Workflow configuration with 'blocks' key
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        workflow_ref = db.reference(f'sellers/{safe_seller_id}/workflow_config')
+        workflow_ref.set(workflow_config)
+        print(f"✅ Workflow configuration saved for seller {seller_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving workflow configuration: {e}")
+        return False
+
+
+def get_workflow_config(seller_id):
+    """
+    Get workflow automation configuration from Firebase
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        dict: Workflow configuration or None
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        workflow_ref = db.reference(f'sellers/{safe_seller_id}/workflow_config')
+        workflow_config = workflow_ref.get()
+        return workflow_config
+    except Exception as e:
+        print(f"❌ Error getting workflow configuration: {e}")
+        return None
+
 
 # ==================== AGENT MEMORY ====================
 
