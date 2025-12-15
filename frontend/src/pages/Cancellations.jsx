@@ -20,7 +20,7 @@ export default function Cancellations() {
 
     const fetchCancellationRequests = async () => {
         try {
-            const res = await api.get('/api/cancellations');
+            const res = await api.get('/cancellations');
             setCancellationRequests(res.data.cancellations || []);
         } catch (err) {
             console.error("Failed to fetch cancellation requests", err);
@@ -57,7 +57,7 @@ export default function Cancellations() {
 
         setProcessingId(selectedRequest.order_id);
         try {
-            await api.post(`/api/cancellations/${selectedRequest.order_id}/approve`, {
+            await api.post(`/cancellations/${selectedRequest.order_id}/approve`, {
                 message: customMessage
             });
 
@@ -79,7 +79,7 @@ export default function Cancellations() {
 
         setProcessingId(selectedRequest.order_id);
         try {
-            await api.post(`/api/cancellations/${selectedRequest.order_id}/reject`, {
+            await api.post(`/cancellations/${selectedRequest.order_id}/reject`, {
                 message: customMessage
             });
 
@@ -174,8 +174,8 @@ export default function Cancellations() {
                                             <div>
                                                 <p className="text-xs text-slate-500 mb-1">Payment Status</p>
                                                 <span className={`inline-block px-2 py-1 rounded-lg text-xs font-medium ${isPaid
-                                                        ? 'bg-green-500/20 text-green-400'
-                                                        : 'bg-amber-500/20 text-amber-400'
+                                                    ? 'bg-green-500/20 text-green-400'
+                                                    : 'bg-amber-500/20 text-amber-400'
                                                     }`}>
                                                     {request.payment_status || 'Pending'}
                                                 </span>
@@ -276,8 +276,8 @@ export default function Cancellations() {
                                 onClick={actionType === 'approve' ? handleApprove : handleReject}
                                 disabled={processingId !== null}
                                 className={`px-6 py-2 ${actionType === 'approve'
-                                        ? 'bg-green-600 hover:bg-green-700'
-                                        : 'bg-red-600 hover:bg-red-700'
+                                    ? 'bg-green-600 hover:bg-green-700'
+                                    : 'bg-red-600 hover:bg-red-700'
                                     } text-white rounded-xl font-medium transition-all disabled:opacity-50`}
                             >
                                 {processingId !== null ? 'Processing...' : `Confirm ${actionType === 'approve' ? 'Approval' : 'Rejection'}`}
