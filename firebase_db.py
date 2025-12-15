@@ -435,6 +435,144 @@ def get_workflow_config(seller_id):
         return None
 
 
+# ==================== CANCELLATION MANAGEMENT ====================
+
+def get_cancellation_requests(seller_id):
+    """
+    Get all pending cancellation requests for a seller
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        list: List of orders with cancellation requests
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # Get cancellation order IDs
+        cancellation_ref = db.reference(f'sellers/{safe_seller_id}/cancellation')
+        cancellation_order_ids = cancellation_ref.get() or []
+        
+        if not cancellation_order_ids:
+            return []
+        
+        # Get full order details for these order IDs
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/orders')
+        all_orders = orders_ref.get() or []
+        
+        # Filter orders by cancellation requests
+        cancellation_requests = []
+        for order in all_orders:
+            order_id = order.get('order_id') or order.get('id')
+            if order_id in cancellation_order_ids:
+                cancellation_requests.append(order)
+        
+        print(f"✅ Found {len(cancellation_requests)} cancellation requests for seller {seller_id}")
+        return cancellation_requests
+        
+    except Exception as e:
+        print(f"❌ Error getting cancellation requests: {e}")
+        return []
+
+
+def approve_cancellation_request(seller_id, order_id):
+    """
+    Approve cancellation request and delete order
+    
+    Args:
+        seller_id (str): Seller ID
+        order_id (int): Order ID
+        
+    Returns:
+        dict: Result with 'success' and 'order' keys, or None on failure
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # Get the order before deleting
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/orders')
+        all_orders = orders_ref.get() or []
+        
+        order_to_delete = None
+        remaining_orders = []
+        
+        for order in all_orders:
+            if order.get('order_id') == order_id or order.get('id') == order_id:
+                order_to_delete = order
+            else:
+                remaining_orders.append(order)
+        
+        if not order_to_delete:
+            print(f"⚠️ Order {order_id} not found")
+            return None
+        
+        # Delete order from orders list
+        orders_ref.set(remaining_orders)
+        
+        # Remove from cancellation list
+        cancellation_ref = db.reference(f'sellers/{safe_seller_id}/cancellation')
+        cancellation_order_ids = cancellation_ref.get() or []
+        
+        if order_id in cancellation_order_ids:
+            cancellation_order_ids.remove(order_id)
+            cancellation_ref.set(cancellation_order_ids)
+        
+        print(f"✅ Cancellation approved and order {order_id} deleted for seller {seller_id}")
+        return {'success': True, 'order': order_to_delete}
+        
+    except Exception as e:
+        print(f"❌ Error approving cancellation: {e}")
+        return None
+
+
+def reject_cancellation_request(seller_id, order_id):
+    """
+    Reject cancellation request (keep order, remove from cancellation list)
+    
+    Args:
+        seller_id (str): Seller ID
+        order_id (int): Order ID
+        
+    Returns:
+        dict: Result with 'success' and 'order' keys, or None on failure
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # Get the order
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/orders')
+        all_orders = orders_ref.get() or []
+        
+        order_found = None
+        for order in all_orders:
+            if order.get('order_id') == order_id or order.get('id') == order_id:
+                order_found = order
+                break
+        
+        if not order_found:
+            print(f"⚠️ Order {order_id} not found")
+            return None
+        
+        # Remove from cancellation list (order stays in orders)
+        cancellation_ref = db.reference(f'sellers/{safe_seller_id}/cancellation')
+        cancellation_order_ids = cancellation_ref.get() or []
+        
+        if order_id in cancellation_order_ids:
+            cancellation_order_ids.remove(order_id)
+            cancellation_ref.set(cancellation_order_ids)
+        
+        print(f"✅ Cancellation rejected for order {order_id}, seller {seller_id}")
+        return {'success': True, 'order': order_found}
+        
+    except Exception as e:
+        print(f"❌ Error rejecting cancellation: {e}")
+        return None
+
+
 # ==================== AGENT MEMORY ====================
 
 def get_agent_memory_ref():

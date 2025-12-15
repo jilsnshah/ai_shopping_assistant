@@ -837,6 +837,111 @@ def save_razorpay_creds():
         return jsonify({'error': str(e)}), 500
 
 
+
+
+# ===== CANCELLATION MANAGEMENT ENDPOINTS =====
+
+@app.route('/api/cancellations', methods=['GET'])
+def get_cancellation_requests():
+    """Get all pending cancellation requests for a seller"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        from firebase_db import get_cancellation_requests
+        cancellation_requests = get_cancellation_requests(seller_id)
+        
+        return jsonify({
+            'cancellations': cancellation_requests,
+            'count': len(cancellation_requests)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error fetching cancellation requests: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cancellations/<int:order_id>/approve', methods=['POST'])
+def approve_cancellation(order_id):
+    """Approve cancellation request and delete order"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        data = request.get_json()
+        custom_message = data.get('message', '')
+        
+        from firebase_db import approve_cancellation_request
+        result = approve_cancellation_request(seller_id, order_id)
+        
+        if not result:
+            return jsonify({'error': 'Failed to approve cancellation'}), 500
+        
+        # Get order details for notification
+        order = result.get('order')
+        buyer_phone = order.get('buyer_phone')
+        
+        # Send WhatsApp notification
+        if buyer_phone and custom_message:
+            try:
+                send_whatsapp_message(buyer_phone, custom_message)
+                print(f"✅ Cancellation approval notification sent to {buyer_phone}")
+            except Exception as e:
+                print(f"⚠️ Failed to send cancellation notification: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Cancellation approved and order deleted',
+            'order_id': order_id
+        }), 200
+        
+    except Exception as e:
+        print(f"Error approving cancellation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cancellations/<int:order_id>/reject', methods=['POST'])
+def reject_cancellation(order_id):
+    """Reject cancellation request"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        data = request.get_json()
+        custom_message = data.get('message', '')
+        
+        from firebase_db import reject_cancellation_request
+        result = reject_cancellation_request(seller_id, order_id)
+        
+        if not result:
+            return jsonify({'error': 'Failed to reject cancellation'}), 500
+        
+        # Get order details for notification
+        order = result.get('order')
+        buyer_phone = order.get('buyer_phone')
+        
+        # Send WhatsApp notification
+        if buyer_phone and custom_message:
+            try:
+                send_whatsapp_message(buyer_phone, custom_message)
+                print(f"✅ Cancellation rejection notification sent to {buyer_phone}")
+            except Exception as e:
+                print(f"⚠️ Failed to send cancellation notification: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Cancellation request rejected',
+            'order_id': order_id
+        }), 200
+        
+    except Exception as e:
+        print(f"Error rejecting cancellation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/razorpay/status', methods=['GET'])
 def get_razorpay_status():
     """Get Razorpay connection status"""

@@ -10,6 +10,7 @@ import Customers from './pages/Customers';
 import Payments from './pages/Payments';
 import Integrations from './pages/Integrations';
 import Automation from './pages/Automation';
+import Cancellations from './pages/Cancellations';
 
 // Simple wrapper to check for session. 
 // We rely on the API returning 401 to redirect to login via axios interceptor.
@@ -33,6 +34,7 @@ function App() {
                     <Route path="payments" element={<Payments />} />
                     <Route path="integrations" element={<Integrations />} />
                     <Route path="automation" element={<Automation />} />
+                    <Route path="cancellations" element={<Cancellations />} />
                 </Route>
             </Routes>
         </BrowserRouter>
