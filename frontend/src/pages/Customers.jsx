@@ -30,7 +30,7 @@ export default function Customers() {
                     if (!customerMap.has(order.buyer_phone)) {
                         customerMap.set(order.buyer_phone, {
                             phone: order.buyer_phone,
-                            name: order.buyer_name || 'Unknown',
+                            name: 'Loading...', // Placeholder until Firebase loads
                             totalOrders: 0,
                             totalSpent: 0,
                             lastOrderDate: order.created_at,
@@ -52,6 +52,26 @@ export default function Customers() {
                 );
 
                 setCustomers(customerList);
+
+                // Set up Firebase listeners for each buyer's name
+                customerList.forEach(customer => {
+                    const buyerIdSafe = customer.phone.replace(/[.#$/\[\]]/g, '_');
+                    const buyerRef = ref(database, `buyers/${buyerIdSafe}/name`);
+
+                    onValue(buyerRef, (snapshot) => {
+                        const name = snapshot.val();
+                        if (name) {
+                            setCustomers(prev => prev.map(c =>
+                                c.phone === customer.phone ? { ...c, name } : c
+                            ));
+                        } else {
+                            // If no name in Firebase, use phone number
+                            setCustomers(prev => prev.map(c =>
+                                c.phone === customer.phone ? { ...c, name: customer.phone } : c
+                            ));
+                        }
+                    });
+                });
             } catch (err) {
                 console.error("Failed to fetch customers", err);
             } finally {
