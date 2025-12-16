@@ -4,6 +4,8 @@ import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRigh
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { database } from '../firebase/config';
+import { ref, onValue } from 'firebase/database';
 
 const StatCard = ({ title, value, change, icon: Icon, trend }) => (
     <motion.div
@@ -47,20 +49,27 @@ export default function Dashboard() {
     const [recentActivity, setRecentActivity] = useState([]);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        // Set up Firebase real-time listener for seller data
+        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
 
-    const fetchData = async () => {
-        try {
-            const res = await api.get('/data');
-            const data = res.data;
-            processDashboardData(data);
-        } catch (error) {
-            console.error("Failed to fetch dashboard data", error);
-        } finally {
+        const unsubscribe = onValue(sellerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const dashboardData = {
+                    orders: data.orders || [],
+                    products: data.products || []
+                };
+                processDashboardData(dashboardData);
+            }
             setLoading(false);
-        }
-    };
+        }, (error) => {
+            console.error("Firebase listener error:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const processDashboardData = (data) => {
         const { orders, products } = data;

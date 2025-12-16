@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { CreditCard, Wallet, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import api from '../api/axios';
 import { motion } from 'framer-motion';
+import { database } from '../firebase/config';
+import { ref, onValue } from 'firebase/database';
 
 const StatCard = ({ title, value, icon: Icon, colorClass }) => (
     <motion.div
@@ -27,13 +29,12 @@ export default function Payments() {
     });
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        // Set up Firebase real-time listener for orders (payment data)
+        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
-    const fetchData = async () => {
-        try {
-            const res = await api.get('/orders');
-            const orders = res.data.orders || [];
+        const unsubscribe = onValue(ordersRef, (snapshot) => {
+            const orders = snapshot.val() || [];
 
             const collected = orders
                 .filter(o => o.payment_status === 'Completed')
@@ -48,12 +49,14 @@ export default function Payments() {
                 pending,
                 total: collected + pending
             });
-        } catch (error) {
-            console.error("Failed to fetch payment data", error);
-        } finally {
             setLoading(false);
-        }
-    };
+        }, (error) => {
+            console.error("Firebase listener error:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {

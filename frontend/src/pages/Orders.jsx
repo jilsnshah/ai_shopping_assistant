@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Search, Filter, ChevronDown, CheckCircle, Clock, Truck, XCircle, MoreHorizontal, CreditCard, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Filter, Download, Eye, Edit2, Trash2, ChevronDown, X, Plus, Minus, Upload, MessageSquare, RefreshCw } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ToastContainer } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { database } from '../firebase/config';
+import { ref, onValue } from 'firebase/database';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -85,25 +86,28 @@ export default function Orders() {
     const PAYMENT_STATUSES = ['Pending', 'Requested', 'Completed'];
 
     useEffect(() => {
-        fetchOrders();
+        // Set up Firebase real-time listener for orders
+        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
+
+        const unsubscribe = onValue(ordersRef, (snapshot) => {
+            const data = snapshot.val();
+            setOrders(data || []);
+            setLoading(false);
+        }, (error) => {
+            console.error("Firebase listener error:", error);
+            setLoading(false);
+        });
+
         fetchCompanyInfo();
         fetchRazorpayStatus();
+
+        return () => unsubscribe();
     }, []);
 
     useEffect(() => {
         filterOrders();
     }, [statusFilter, paymentFilter, orders]);
-
-    const fetchOrders = async () => {
-        try {
-            const res = await api.get('/orders');
-            setOrders(res.data.orders || []);
-        } catch (error) {
-            console.error("Failed to fetch orders", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const fetchCompanyInfo = async () => {
         try {
