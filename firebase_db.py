@@ -989,7 +989,240 @@ def migrate_json_to_firebase():
         return False
 
 
+# ==================== WHATSAPP CREDENTIALS MANAGEMENT ====================
+
+def save_whatsapp_credentials(seller_id, phone_number_id, business_account_id, access_token, verify_token):
+    """
+    Save WhatsApp credentials for a seller
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number_id (str): WhatsApp Phone Number ID
+        business_account_id (str): WhatsApp Business Account ID
+        access_token (str): WhatsApp Access Token
+        verify_token (str): Webhook Verify Token
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # Save credentials under seller's what_creds
+        creds_ref = db.reference(f'sellers/{safe_seller_id}/what_creds')
+        creds_ref.set({
+            'phone_number_id': phone_number_id,
+            'business_account_id': business_account_id,
+            'access_token': access_token,
+            'verify_token': verify_token
+        })
+        
+        # Save phone number ID to seller mapping
+        numbers_ref = db.reference(f'numbers/{phone_number_id}')
+        numbers_ref.set(safe_seller_id)
+        
+        print(f"✅ WhatsApp credentials saved for seller {seller_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving WhatsApp credentials: {e}")
+        return False
+
+
+def get_whatsapp_credentials(seller_id):
+    """
+    Get WhatsApp credentials for a seller
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        dict: Credentials dict with phone_number_id, business_account_id, access_token, verify_token or None
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        creds_ref = db.reference(f'sellers/{safe_seller_id}/what_creds')
+        creds = creds_ref.get()
+        return creds
+    except Exception as e:
+        print(f"❌ Error getting WhatsApp credentials: {e}")
+        return None
+
+
+def delete_whatsapp_credentials(seller_id):
+    """
+    Delete WhatsApp credentials for a seller (deactivate)
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # First get the phone_number_id to delete the mapping
+        creds_ref = db.reference(f'sellers/{safe_seller_id}/what_creds')
+        creds = creds_ref.get()
+        
+        if creds and creds.get('phone_number_id'):
+            # Delete the phone number mapping
+            numbers_ref = db.reference(f'numbers/{creds["phone_number_id"]}')
+            numbers_ref.delete()
+        
+        # Delete the credentials
+        creds_ref.delete()
+        
+        print(f"✅ WhatsApp credentials deleted for seller {seller_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Error deleting WhatsApp credentials: {e}")
+        return False
+
+
+def get_seller_by_phone_number_id(phone_number_id):
+    """
+    Get seller ID from WhatsApp Phone Number ID
+    
+    Args:
+        phone_number_id (str): WhatsApp Phone Number ID
+        
+    Returns:
+        str: Seller ID or None if not found
+    """
+    try:
+        initialize_firebase()
+        numbers_ref = db.reference(f'numbers/{phone_number_id}')
+        seller_id = numbers_ref.get()
+        return seller_id
+    except Exception as e:
+        print(f"❌ Error getting seller by phone number ID: {e}")
+        return None
+
+
+# ==================== CUSTOMER MANAGEMENT (Per-Seller) ====================
+
+def get_customer(seller_id, phone_number):
+    """
+    Get a customer's data for a specific seller
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number (str): Customer's phone number
+        
+    Returns:
+        dict: Customer data or None if not found
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}')
+        return customer_ref.get()
+    except Exception as e:
+        print(f"❌ Error getting customer: {e}")
+        return None
+
+
+def update_customer(seller_id, phone_number, customer_data):
+    """
+    Update or create a customer for a specific seller
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number (str): Customer's phone number
+        customer_data (dict): Customer data to save
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}')
+        customer_ref.set(customer_data)
+        print(f"✅ Customer {phone_number} updated for seller {seller_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Error updating customer: {e}")
+        return False
+
+
+def get_customer_cart(seller_id, phone_number):
+    """
+    Get customer's cart for a specific seller
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number (str): Customer's phone number
+        
+    Returns:
+        list: Cart items or empty list
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/cart')
+        cart = cart_ref.get()
+        return cart if cart else []
+    except Exception as e:
+        print(f"❌ Error getting customer cart: {e}")
+        return []
+
+
+def update_customer_cart(seller_id, phone_number, cart):
+    """
+    Update customer's cart for a specific seller
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number (str): Customer's phone number
+        cart (list): Cart items
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/cart')
+        cart_ref.set(cart)
+        return True
+    except Exception as e:
+        print(f"❌ Error updating customer cart: {e}")
+        return False
+
+
+def add_customer_order_ref(seller_id, phone_number, order_ref):
+    """
+    Add order reference to customer's orders list
+    
+    Args:
+        seller_id (str): Seller ID
+        phone_number (str): Customer's phone number
+        order_ref (dict): Order reference with seller_id and order_id
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/orders')
+        orders = orders_ref.get() or []
+        orders.append(order_ref)
+        orders_ref.set(orders)
+        print(f"✅ Order reference added to customer {phone_number}")
+        return True
+    except Exception as e:
+        print(f"❌ Error adding customer order reference: {e}")
+        return False
+
+
 if __name__ == "__main__":
+
     # Test Firebase connection and optionally migrate data
     print("Testing Firebase connection...")
     initialize_firebase()

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, ChevronDown, CheckCircle, Clock, Truck, XCircle, MoreHorizontal, CreditCard, Loader2 } from 'lucide-react';
+import { Search, Filter, ChevronDown, CheckCircle, Clock, Truck, XCircle, MoreHorizontal, CreditCard, Loader2, MapPin, X, Package, Calendar, User } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,6 +73,7 @@ export default function Orders() {
     const [upiId, setUpiId] = useState('');
     const [razorpayEnabled, setRazorpayEnabled] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null); // For order detail modal
     const { toasts, removeToast, success, error } = useToast();
 
     // Message Modal State
@@ -295,12 +296,20 @@ Thank you! 🙏`;
             orderId,
             type: 'payment',
             newStatus,
-            message
+            message,
+            invoiceFile: null
         });
     };
 
     const confirmUpdate = async () => {
         const { orderId, type, newStatus, message, invoiceFile } = messageModal;
+
+        // Debug: Log what we have
+        console.log('📄 DEBUG: invoiceFile =', invoiceFile);
+        console.log('📄 DEBUG: type =', type);
+        console.log('📄 DEBUG: newStatus =', newStatus);
+        console.log('📄 DEBUG: messageModal =', messageModal);
+
         setIsSending(true);
         try {
             // Use FormData to support file upload
@@ -329,7 +338,12 @@ Thank you! 🙏`;
                 }
             }
 
-            await api.put(`/orders/${orderId}`, formData);
+            // When sending FormData with file, don't set Content-Type - let browser handle it
+            await api.put(`/orders/${orderId}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
 
             // Update local state
             const payload = type === 'status' ? { order_status: newStatus } : { payment_status: newStatus };
@@ -559,7 +573,11 @@ Thank you! 🙏`;
                         ) : filteredOrders.length === 0 ? (
                             <tr><td colSpan="8" className="p-8 text-center text-slate-500">No orders found.</td></tr>
                         ) : filteredOrders.map((order) => (
-                            <tr key={order.order_id} className="group hover:bg-slate-800/30 transition-colors">
+                            <tr
+                                key={order.order_id}
+                                className="group hover:bg-slate-800/30 transition-colors cursor-pointer"
+                                onClick={() => setSelectedOrder(order)}
+                            >
                                 <td className="px-6 py-4 font-mono text-indigo-400">#{order.order_id}</td>
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-white">{order.buyer_phone}</div>
@@ -568,7 +586,14 @@ Thank you! 🙏`;
                                     {order.items ? (
                                         <div className="flex flex-col gap-1">
                                             {order.items.map((item, idx) => (
-                                                <span key={idx} className="text-sm">{item.product_name} <span className="text-slate-500">x{item.quantity}</span></span>
+                                                <div key={idx} className="text-sm">
+                                                    <span>{item.product_name} <span className="text-slate-500">x{item.quantity}</span></span>
+                                                    {item.selected_features && Object.keys(item.selected_features).length > 0 && (
+                                                        <span className="ml-2 text-xs text-indigo-400">
+                                                            ({Object.entries(item.selected_features).map(([k, v]) => `${k}: ${v}`).join(', ')})
+                                                        </span>
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     ) : (
@@ -585,7 +610,7 @@ Thank you! 🙏`;
                                 <td className="px-6 py-4 text-slate-400 text-sm">
                                     {new Date(order.created_at).toLocaleDateString()}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                     <div className="relative inline-block text-left group/actions">
                                         <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
                                             <MoreHorizontal className="w-5 h-5" />
@@ -731,6 +756,133 @@ Thank you! 🙏`;
                                             Confirm & Send
                                         </>
                                     )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Order Detail Modal */}
+                {selectedOrder && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-700/50 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-hidden"
+                        >
+                            {/* Header */}
+                            <div className="relative p-6 border-b border-slate-700/50 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+                                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50"></div>
+                                <div className="relative flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                                                <Package className="w-5 h-5 text-indigo-400" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-white">Order #{selectedOrder.order_id}</h2>
+                                                <p className="text-slate-400 text-sm flex items-center gap-2">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {new Date(selectedOrder.created_at).toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedOrder(null)}
+                                        className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-white transition-all"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex gap-3 mt-4">
+                                    <StatusBadge status={selectedOrder.order_status} />
+                                    <PaymentBadge status={selectedOrder.payment_status} />
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] custom-scrollbar space-y-6">
+                                {/* Customer Info */}
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <User className="w-4 h-4" /> Customer
+                                    </h3>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center">
+                                            <User className="w-6 h-6 text-emerald-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-medium">{selectedOrder.buyer_name || 'Customer'}</p>
+                                            <p className="text-slate-400 text-sm">{selectedOrder.buyer_phone}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Order Items */}
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Package className="w-4 h-4" /> Order Items
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {selectedOrder.items ? selectedOrder.items.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-start p-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
+                                                <div className="flex-1">
+                                                    <p className="text-white font-medium">{item.product_name}</p>
+                                                    <p className="text-slate-500 text-sm">Qty: {item.quantity} × ₹{item.price}</p>
+                                                    {item.selected_features && Object.keys(item.selected_features).length > 0 && (
+                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                            {Object.entries(item.selected_features).map(([key, value]) => (
+                                                                <span key={key} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 text-xs rounded-lg border border-indigo-500/20">
+                                                                    {key}: {value}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="text-emerald-400 font-semibold">₹{item.subtotal}</p>
+                                            </div>
+                                        )) : (
+                                            <div className="p-3 bg-slate-900/50 rounded-lg">
+                                                <p className="text-white">{selectedOrder.product_name}</p>
+                                                <p className="text-slate-500 text-sm">Qty: {selectedOrder.quantity}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex justify-between items-center">
+                                        <span className="text-slate-400 font-medium">Total Amount</span>
+                                        <span className="text-2xl font-bold text-white">₹{(selectedOrder.total_amount || selectedOrder.amount || 0).toLocaleString()}</span>
+                                    </div>
+                                </div>
+
+                                {/* Delivery Address */}
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <MapPin className="w-4 h-4" /> Delivery Address
+                                    </h3>
+                                    <p className="text-white">{selectedOrder.delivery_address || 'Not provided'}</p>
+                                    {selectedOrder.delivery_lat && selectedOrder.delivery_lng && (
+                                        <a
+                                            href={`https://www.google.com/maps?q=${selectedOrder.delivery_lat},${selectedOrder.delivery_lng}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors text-sm"
+                                        >
+                                            <MapPin className="w-4 h-4" />
+                                            View on Map
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 border-t border-slate-700/50 bg-slate-900/50 flex justify-end">
+                                <button
+                                    onClick={() => setSelectedOrder(null)}
+                                    className="px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                                >
+                                    Close
                                 </button>
                             </div>
                         </motion.div>

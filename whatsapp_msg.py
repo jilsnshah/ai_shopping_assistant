@@ -186,12 +186,27 @@ def collect_buyer_name(phone_number: str, message: str, agent) -> dict:
         }
 
 
-def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
-    """Send a message via WhatsApp Business API and save to Firebase"""
-    url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jilsnshah_at_gmail_dot_com", whatsapp_creds: dict = None):
+    """Send a message via WhatsApp Business API and save to Firebase
+    
+    Args:
+        phone_number: Recipient phone number
+        message: Message text to send
+        seller_id: Seller ID for conversation history
+        whatsapp_creds: Optional dict with phone_number_id, access_token. Falls back to env vars.
+    """
+    # Use provided credentials or fall back to env vars
+    if whatsapp_creds:
+        phone_number_id = whatsapp_creds.get('phone_number_id', WHATSAPP_PHONE_NUMBER_ID)
+        access_token = whatsapp_creds.get('access_token', WHATSAPP_ACCESS_TOKEN)
+    else:
+        phone_number_id = WHATSAPP_PHONE_NUMBER_ID
+        access_token = WHATSAPP_ACCESS_TOKEN
+    
+    url = f"{WHATSAPP_API_URL}/{phone_number_id}/messages"
     
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
     
@@ -221,7 +236,7 @@ def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jil
         return None
 
 
-def send_whatsapp_media(phone_number: str, media_file, caption: str = ""):
+def send_whatsapp_media(phone_number: str, media_file, caption: str = "", whatsapp_creds: dict = None):
     """
     Upload and send media (PDF document) via WhatsApp Business API
     
@@ -229,16 +244,25 @@ def send_whatsapp_media(phone_number: str, media_file, caption: str = ""):
         phone_number: Recipient phone number (with country code)
         media_file: File object or file path to upload
         caption: Optional caption text to accompany the media
+        whatsapp_creds: Optional dict with phone_number_id, access_token. Falls back to env vars.
     
     Returns:
         dict: Response from WhatsApp API or None if failed
     """
+    # Use provided credentials or fall back to env vars
+    if whatsapp_creds:
+        phone_number_id = whatsapp_creds.get('phone_number_id', WHATSAPP_PHONE_NUMBER_ID)
+        access_token = whatsapp_creds.get('access_token', WHATSAPP_ACCESS_TOKEN)
+    else:
+        phone_number_id = WHATSAPP_PHONE_NUMBER_ID
+        access_token = WHATSAPP_ACCESS_TOKEN
+    
     try:
         # Step 1: Upload media to WhatsApp servers
-        upload_url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/media"
+        upload_url = f"{WHATSAPP_API_URL}/{phone_number_id}/media"
         
         headers = {
-            "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}"
+            "Authorization": f"Bearer {access_token}"
         }
         
         # Prepare file for upload
@@ -264,7 +288,7 @@ def send_whatsapp_media(phone_number: str, media_file, caption: str = ""):
         print(f"✅ Media uploaded successfully. Media ID: {media_id}")
         
         # Step 2: Send media message with the media_id
-        send_url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+        send_url = f"{WHATSAPP_API_URL}/{phone_number_id}/messages"
         
         headers["Content-Type"] = "application/json"
         
@@ -307,7 +331,7 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
         from firebase_db import save_conversation_message, get_conversation_history
         
         # Check if buyer profile exists
-        buyer_profile = check_buyer_profile(phone_number)
+        buyer_profile = check_buyer_profile(phone_number, seller_id)
         
         if not buyer_profile.get('exists'):
             # New buyer - use name collection agent
@@ -327,7 +351,7 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
                 confirmed_name = result.get('name')
                 print(f"✅ Creating profile for: {confirmed_name}")
                 
-                create_result = create_buyer_profile(phone_number, confirmed_name)
+                create_result = create_buyer_profile(phone_number, confirmed_name, seller_id)
                 
                 if create_result.get('success'):
                     # Clean up name collection agent
@@ -440,6 +464,22 @@ def webhook_callback():
                     value = change.get("value", {})
                     # Only process if there is a 'messages' key (not 'statuses')
                     if "messages" in value:
+                        # Extract phone_number_id from metadata
+                        metadata = value.get("metadata", {})
+                        phone_number_id = metadata.get("phone_number_id")
+                        
+                        # Look up seller_id from phone_number_id mapping
+                        from firebase_db import get_seller_by_phone_number_id, get_whatsapp_credentials
+                        seller_id = get_seller_by_phone_number_id(phone_number_id) if phone_number_id else None
+                        
+                        # Get WhatsApp credentials for this seller
+                        whatsapp_creds = None
+                        if seller_id:
+                            whatsapp_creds = get_whatsapp_credentials(seller_id)
+                            print(f"🏪 Seller identified: {seller_id}")
+                        else:
+                            print(f"⚠️ No seller found for phone_number_id: {phone_number_id}")
+                        
                         messages = value.get("messages", [])
                         for message in messages:
                             # Get WhatsApp message ID for deduplication
@@ -458,22 +498,31 @@ def webhook_callback():
                             
                             from_number = message.get("from")
                             message_type = message.get("type")
+                            
+                            # Check if seller is registered
+                            if not seller_id or not whatsapp_creds:
+                                print(f"❌ Seller not registered for phone_number_id: {phone_number_id}")
+                                # Still try to send a response using env fallback
+                                send_whatsapp_message(from_number, "Sorry, this seller is not registered yet. Please contact support.")
+                                continue
+                            
                             if message_type == "text":
                                 message_text = message.get("text", {}).get("body", "")
-                                agent_response = process_whatsapp_message(from_number, message_text)
-                                send_whatsapp_message(from_number, agent_response)
+                                agent_response = process_whatsapp_message(from_number, message_text, seller_id)
+                                send_whatsapp_message(from_number, agent_response, seller_id, whatsapp_creds)
                             elif message_type == "location":
                                 location_data = message.get("location", {})
                                 latitude = location_data.get("latitude")
                                 longitude = location_data.get("longitude")
                                 location_text = f"[location] : latitude: {latitude}, longitude: {longitude}"
                                 print(f"📍 Location received from {from_number}: {location_text}")
-                                agent_response = process_whatsapp_message(from_number, location_text)
-                                send_whatsapp_message(from_number, agent_response)
+                                agent_response = process_whatsapp_message(from_number, location_text, seller_id)
+                                send_whatsapp_message(from_number, agent_response, seller_id, whatsapp_creds)
         
         return jsonify({"status": "success"}), 200
         
     except Exception as e:
+
         print(f"❌ Error in webhook callback: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -544,5 +593,5 @@ if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
         port=5001,
-        debug=True
+        debug=False
     )

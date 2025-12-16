@@ -19,34 +19,33 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
-        // Set up Firebase real-time listeners for customer IDs, buyers, and orders
+        // Set up Firebase real-time listeners for customer data and orders
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
-        const customerIdsRef = ref(database, `sellers/${sellerIdSafe}/customers`);
+        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
-        const buyersRef = ref(database, 'buyers');
 
-        let customerIds = [];
+        let customersData = {};
         let ordersData = [];
-        let buyersData = {};
 
         const processCustomerData = () => {
-            if (!customerIds || customerIds.length === 0) {
+            const customerPhones = Object.keys(customersData || {});
+
+            if (customerPhones.length === 0) {
                 setCustomers([]);
                 setLoading(false);
                 return;
             }
 
-            const customerList = customerIds.map(phone => {
-                // Convert phone to string for comparison
+            const customerList = customerPhones.map(phone => {
                 const phoneStr = String(phone);
 
-                // Get buyer info from buyers collection
-                const buyerInfo = buyersData[phoneStr] || {};
+                // Get customer info from the new seller-specific path
+                const customerInfo = customersData[phoneStr] || {};
 
                 const customerOrders = ordersData.filter(order => String(order.buyer_phone) === phoneStr);
 
-                // Get name from buyers collection first, then orders, then use phone
-                const name = buyerInfo.name || (customerOrders.length > 0 ? customerOrders[0].buyer_name : null) || phoneStr;
+                // Get name from customer data, then orders, then use phone
+                const name = customerInfo.name || (customerOrders.length > 0 ? customerOrders[0].buyer_name : null) || phoneStr;
 
                 return {
                     phone: phoneStr,
@@ -55,8 +54,9 @@ export default function Customers() {
                     totalSpent: customerOrders.reduce((sum, order) => sum + (order.total_amount || order.amount || 0), 0),
                     lastOrderDate: customerOrders.length > 0
                         ? customerOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at
-                        : null,
-                    orders: customerOrders
+                        : customerInfo.created_at || null,
+                    orders: customerOrders,
+                    cart: customerInfo.cart || []
                 };
             }).sort((a, b) => {
                 if (!a.lastOrderDate) return 1;
@@ -69,9 +69,24 @@ export default function Customers() {
             setLoading(false);
         };
 
-        const unsubscribeCustomerIds = onValue(customerIdsRef, (snapshot) => {
-            customerIds = snapshot.val() || [];
-            console.log('Customer IDs received:', customerIds);
+        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
+            const data = snapshot.val();
+            // Handle both object format (new) and array format (old)
+            if (data) {
+                if (Array.isArray(data)) {
+                    // If it's an array of phone numbers (old format), convert to object
+                    customersData = {};
+                    data.forEach(phone => {
+                        customersData[String(phone)] = { phone_number: String(phone) };
+                    });
+                } else {
+                    // New format: object with phone as key
+                    customersData = data;
+                }
+            } else {
+                customersData = {};
+            }
+            console.log('Customer data received:', Object.keys(customersData).length);
             processCustomerData();
         });
 
@@ -82,18 +97,12 @@ export default function Customers() {
             processCustomerData();
         });
 
-        const unsubscribeBuyers = onValue(buyersRef, (snapshot) => {
-            buyersData = snapshot.val() || {};
-            console.log('Buyers data received:', Object.keys(buyersData).length);
-            processCustomerData();
-        });
-
         return () => {
-            unsubscribeCustomerIds();
+            unsubscribeCustomers();
             unsubscribeOrders();
-            unsubscribeBuyers();
         };
     }, []);
+
 
     // Set up Firebase real-time listener for conversation
     useEffect(() => {
@@ -320,8 +329,14 @@ export default function Customers() {
                                                                 {new Date(order.created_at).toLocaleString()}
                                                             </span>
                                                         </div>
-                                                        <p className="text-slate-300 text-sm line-clamp-1">
-                                                            {order.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}
+                                                        <p className="text-slate-300 text-sm line-clamp-2">
+                                                            {order.items?.map(i => {
+                                                                let text = `${i.quantity}x ${i.product_name}`;
+                                                                if (i.selected_features && Object.keys(i.selected_features).length > 0) {
+                                                                    text += ` (${Object.entries(i.selected_features).map(([k, v]) => `${k}: ${v}`).join(', ')})`;
+                                                                }
+                                                                return text;
+                                                            }).join(', ')}
                                                         </p>
                                                     </div>
 

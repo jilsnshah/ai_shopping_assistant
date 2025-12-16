@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Filter, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit, X, ChevronDown } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { ToastContainer } from '../components/Toast';
@@ -18,7 +18,14 @@ export default function Products() {
         category: '',
         stock_quantity: '',
         description: '',
-        image_url: ''
+        image_url: '',
+        features: [] // Array of {name, type, required, options}
+    });
+    const [newFeature, setNewFeature] = useState({
+        name: '',
+        type: 'multiple_choice',
+        required: true,
+        options: ''
     });
     const { toasts, removeToast, success, error } = useToast();
 
@@ -56,8 +63,10 @@ export default function Products() {
             category: '',
             stock_quantity: '',
             description: '',
-            image_url: ''
+            image_url: '',
+            features: []
         });
+        setNewFeature({ name: '', type: 'multiple_choice', required: true, options: '' });
         setIsModalOpen(true);
     };
 
@@ -69,9 +78,34 @@ export default function Products() {
             category: product.category,
             stock_quantity: product.stock_quantity,
             description: product.description,
-            image_url: product.image_url
+            image_url: product.image_url,
+            features: product.features || []
         });
+        setNewFeature({ name: '', type: 'multiple_choice', required: true, options: '' });
         setIsModalOpen(true);
+    };
+
+    const addFeature = () => {
+        if (!newFeature.name.trim()) return;
+
+        const feature = {
+            name: newFeature.name.trim(),
+            type: newFeature.type,
+            required: newFeature.required,
+            ...(newFeature.type === 'multiple_choice' && {
+                options: newFeature.options.split(',').map(o => o.trim()).filter(o => o)
+            })
+        };
+
+        setFormData({ ...formData, features: [...formData.features, feature] });
+        setNewFeature({ name: '', type: 'multiple_choice', required: true, options: '' });
+    };
+
+    const removeFeature = (index) => {
+        setFormData({
+            ...formData,
+            features: formData.features.filter((_, i) => i !== index)
+        });
     };
 
     const handleSave = async (e) => {
@@ -200,11 +234,11 @@ export default function Products() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+                        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto my-4"
                     >
                         <h2 className="text-2xl font-bold text-white mb-6">
                             {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -266,9 +300,104 @@ export default function Products() {
                                 <textarea
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    rows={3}
+                                    rows={2}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500"
                                 />
+                            </div>
+
+                            {/* Features Section */}
+                            <div className="border-t border-slate-800 pt-4 mt-4">
+                                <label className="block text-sm font-medium text-slate-300 mb-3">Product Features (Optional)</label>
+
+                                {/* Existing Features */}
+                                {formData.features.length > 0 && (
+                                    <div className="space-y-2 mb-4">
+                                        {formData.features.map((feature, index) => (
+                                            <div key={index} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2">
+                                                <div className="flex-1">
+                                                    <span className="text-white font-medium">{feature.name}</span>
+                                                    <span className={cn("ml-2 text-xs px-2 py-0.5 rounded-full",
+                                                        feature.type === 'multiple_choice' ? "bg-indigo-500/20 text-indigo-400" :
+                                                            feature.type === 'text' ? "bg-emerald-500/20 text-emerald-400" :
+                                                                "bg-amber-500/20 text-amber-400"
+                                                    )}>
+                                                        {feature.type}
+                                                    </span>
+                                                    <span className={cn("ml-2 text-xs px-2 py-0.5 rounded-full",
+                                                        feature.required ? "bg-red-500/20 text-red-400" : "bg-slate-600/50 text-slate-400"
+                                                    )}>
+                                                        {feature.required ? 'Required' : 'Optional'}
+                                                    </span>
+                                                    {feature.options && (
+                                                        <span className="ml-2 text-xs text-slate-500">
+                                                            [{feature.options.join(', ')}]
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFeature(index)}
+                                                    className="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Add New Feature Form */}
+                                <div className="bg-slate-800/30 rounded-lg p-3 space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Feature name (e.g., Size)"
+                                            value={newFeature.name}
+                                            onChange={(e) => setNewFeature({ ...newFeature, name: e.target.value })}
+                                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <select
+                                            value={newFeature.type}
+                                            onChange={(e) => setNewFeature({ ...newFeature, type: e.target.value })}
+                                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                            <option value="multiple_choice">Multiple Choice</option>
+                                            <option value="text">Text Input</option>
+                                            <option value="numeric">Numeric</option>
+                                        </select>
+                                    </div>
+
+                                    {newFeature.type === 'multiple_choice' && (
+                                        <input
+                                            type="text"
+                                            placeholder="Options (comma separated, e.g., S, M, L, XL)"
+                                            value={newFeature.options}
+                                            onChange={(e) => setNewFeature({ ...newFeature, options: e.target.value })}
+                                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    )}
+
+                                    <div className="flex items-center justify-between">
+                                        <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={newFeature.required}
+                                                onChange={(e) => setNewFeature({ ...newFeature, required: e.target.checked })}
+                                                className="w-4 h-4 rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500"
+                                            />
+                                            Required for ordering
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={addFeature}
+                                            disabled={!newFeature.name.trim()}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            Add Feature
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div className="flex justify-end gap-3 mt-6">
                                 <button

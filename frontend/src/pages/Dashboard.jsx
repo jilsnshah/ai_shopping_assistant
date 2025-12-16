@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, MessageSquare, Power, X } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -48,6 +48,68 @@ export default function Dashboard() {
     const [chartData, setChartData] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
 
+    // AI Assistant state
+    const [aiAssistantActive, setAiAssistantActive] = useState(false);
+    const [showCredentialsForm, setShowCredentialsForm] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [whatsappCreds, setWhatsappCreds] = useState({
+        phone_number_id: '',
+        business_account_id: '',
+        access_token: '',
+        verify_token: ''
+    });
+
+    // Check WhatsApp AI status on mount
+    useEffect(() => {
+        const checkWhatsAppStatus = async () => {
+            try {
+                const response = await api.get('/whatsapp/status');
+                setAiAssistantActive(response.data.active);
+            } catch (error) {
+                console.error('Failed to check WhatsApp status:', error);
+            }
+        };
+        checkWhatsAppStatus();
+    }, []);
+
+    // Handle WhatsApp activation
+    const handleActivateWhatsApp = async () => {
+        if (!whatsappCreds.phone_number_id || !whatsappCreds.business_account_id ||
+            !whatsappCreds.access_token || !whatsappCreds.verify_token) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        setAiLoading(true);
+        try {
+            await api.post('/whatsapp/activate', whatsappCreds);
+            setAiAssistantActive(true);
+            setShowCredentialsForm(false);
+            setWhatsappCreds({ phone_number_id: '', business_account_id: '', access_token: '', verify_token: '' });
+        } catch (error) {
+            console.error('Failed to activate WhatsApp:', error);
+            alert('Failed to activate. Please check your credentials.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    // Handle WhatsApp deactivation
+    const handleDeactivateWhatsApp = async () => {
+        if (!confirm('Are you sure you want to deactivate the AI Assistant?')) return;
+
+        setAiLoading(true);
+        try {
+            await api.post('/whatsapp/deactivate');
+            setAiAssistantActive(false);
+        } catch (error) {
+            console.error('Failed to deactivate WhatsApp:', error);
+            alert('Failed to deactivate. Please try again.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     useEffect(() => {
         // Set up Firebase real-time listeners for seller data and customers
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
@@ -77,15 +139,27 @@ export default function Dashboard() {
         });
 
         const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
-            customerIds = snapshot.val() || [];
+            const data = snapshot.val();
+            // Handle both object format (new) and array format (old)
+            if (data) {
+                if (Array.isArray(data)) {
+                    customerIds = data;
+                } else {
+                    customerIds = Object.keys(data);
+                }
+            } else {
+                customerIds = [];
+            }
             processData();
         });
+
 
         return () => {
             unsubscribeSeller();
             unsubscribeCustomers();
         };
     }, []);
+
 
     const processDashboardData = (data, customerIds) => {
         const { orders, products } = data;
@@ -197,6 +271,76 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-8">
+            {/* Credentials Form Modal */}
+            {showCredentialsForm && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md mx-4"
+                    >
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-semibold text-white">Activate AI Assistant</h3>
+                            <button
+                                onClick={() => setShowCredentialsForm(false)}
+                                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Phone Number ID</label>
+                                <input
+                                    type="text"
+                                    value={whatsappCreds.phone_number_id}
+                                    onChange={(e) => setWhatsappCreds({ ...whatsappCreds, phone_number_id: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Enter WhatsApp Phone Number ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Business Account ID</label>
+                                <input
+                                    type="text"
+                                    value={whatsappCreds.business_account_id}
+                                    onChange={(e) => setWhatsappCreds({ ...whatsappCreds, business_account_id: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Enter Business Account ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Access Token</label>
+                                <input
+                                    type="password"
+                                    value={whatsappCreds.access_token}
+                                    onChange={(e) => setWhatsappCreds({ ...whatsappCreds, access_token: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Enter Access Token"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Verify Token</label>
+                                <input
+                                    type="text"
+                                    value={whatsappCreds.verify_token}
+                                    onChange={(e) => setWhatsappCreds({ ...whatsappCreds, verify_token: e.target.value })}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Enter Verify Token"
+                                />
+                            </div>
+                            <button
+                                onClick={handleActivateWhatsApp}
+                                disabled={aiLoading}
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {aiLoading ? 'Activating...' : 'Activate AI Assistant'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center">
                 <div>
                     <div className="flex items-center gap-3">
@@ -214,6 +358,53 @@ export default function Dashboard() {
                     </select>
                 </div>
             </div>
+
+            {/* AI Assistant Card */}
+            <motion.div
+                whileHover={{ y: -2 }}
+                className={cn(
+                    "p-6 rounded-2xl border backdrop-blur-xl transition-all",
+                    aiAssistantActive
+                        ? "bg-emerald-900/20 border-emerald-500/30"
+                        : "bg-slate-900/50 border-slate-800"
+                )}
+            >
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className={cn(
+                            "p-3 rounded-xl",
+                            aiAssistantActive ? "bg-emerald-500/20" : "bg-slate-800"
+                        )}>
+                            <MessageSquare className={cn(
+                                "w-6 h-6",
+                                aiAssistantActive ? "text-emerald-400" : "text-slate-400"
+                            )} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-white">WhatsApp AI Assistant</h3>
+                            <p className="text-sm text-slate-400">
+                                {aiAssistantActive
+                                    ? "Active - Responding to customer messages automatically"
+                                    : "Connect your WhatsApp Business API to enable AI responses"}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={aiAssistantActive ? handleDeactivateWhatsApp : () => setShowCredentialsForm(true)}
+                        disabled={aiLoading}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50",
+                            aiAssistantActive
+                                ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
+                                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                        )}
+                    >
+                        <Power className="w-4 h-4" />
+                        {aiLoading ? 'Processing...' : (aiAssistantActive ? 'Deactivate' : 'Activate')}
+                    </button>
+                </div>
+            </motion.div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard

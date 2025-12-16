@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from whatsapp_msg import send_whatsapp_message, send_whatsapp_media
-from firebase_db import load_seller_data, save_seller_data, initialize_firebase, save_razorpay_credentials, get_razorpay_credentials
+from firebase_db import load_seller_data, save_seller_data, initialize_firebase, save_razorpay_credentials, get_razorpay_credentials, get_whatsapp_credentials
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from razorpay_helper import create_payment_link, handle_payment_success, verify_webhook_signature
@@ -321,8 +321,8 @@ def get_orders():
         
         order_status = request.args.get('status')
         
-        # Filter by order status if provided
-        seller_orders = orders
+        # Filter out None entries and filter by order status if provided
+        seller_orders = [o for o in orders if o is not None]
         if order_status:
             seller_orders = [o for o in seller_orders if o.get('order_status') == order_status]
         
@@ -448,6 +448,10 @@ def update_delete_product(product_id):
         if request.method == 'PUT':
             data = request.get_json()
             
+            # Debug: Log what we received
+            print(f"📥 Update product {product_id} - received data: {data}")
+            print(f"📥 Features in request: {data.get('features', 'NOT PRESENT')}")
+            
             # Find and update product
             for product in products:
                 if product.get('id') == product_id:
@@ -457,6 +461,14 @@ def update_delete_product(product_id):
                     product['category'] = data.get('category', product.get('category', ''))
                     product['stock_quantity'] = int(data.get('stock_quantity', product.get('stock_quantity', 0)))
                     product['image_url'] = data.get('image_url', product.get('image_url', ''))
+                    # Save features if provided
+                    if 'features' in data:
+                        product['features'] = data['features']
+                        print(f"📦 Features saved: {data['features']}")
+                    else:
+                        print(f"⚠️ No features in request data!")
+                    
+                    print(f"📦 Updated product: {product}")
                     
                     # Save to Firebase
                     save_data_to_firebase(seller_id)
@@ -488,6 +500,10 @@ def create_product():
         
         data = request.get_json()
         
+        # Debug: Log what features we received
+        print(f"📥 Create product - received data: {data}")
+        print(f"📥 Features received: {data.get('features', 'NOT PRESENT')}")
+        
         # Generate new product ID
         new_id = max([p.get('id', 0) for p in products], default=0) + 1
         
@@ -499,8 +515,11 @@ def create_product():
             'category': data.get('category', ''),
             'stock_quantity': int(data.get('stock_quantity', 0)),
             'image_url': data.get('image_url', ''),
+            'features': data.get('features', []),
             'created_at': datetime.now().isoformat()
         }
+        
+        print(f"📦 Created product object: {product}")
         
         products.append(product)
         
@@ -595,7 +614,9 @@ def update_order(order_id):
                         )
                     
                     try:
-                        send_whatsapp_message(buyer_phone, message)
+                        # Fetch WhatsApp credentials for this seller
+                        whatsapp_creds = get_whatsapp_credentials(seller_id)
+                        send_whatsapp_message(buyer_phone, message, seller_id, whatsapp_creds)
                         print(f"✅ Order status WhatsApp notification sent to {buyer_phone}")
                     except Exception as e:
                         print(f"⚠️ Failed to send order status notification: {e}")
@@ -727,20 +748,28 @@ def update_order(order_id):
                         # Check for attached invoice file
                         invoice_file = request.files.get('invoice')
                         
+                        # Debug: Log what we received
+                        print(f"📄 DEBUG: invoice_file = {invoice_file}")
+                        print(f"📄 DEBUG: new_payment_status = {new_payment_status}")
+                        print(f"📄 DEBUG: request.files = {request.files}")
+                        
+                        # Fetch WhatsApp credentials for this seller
+                        whatsapp_creds = get_whatsapp_credentials(seller_id)
+                        
                         try:
                             if invoice_file and new_payment_status == 'Requested':
                                 # Validate PDF file
                                 if invoice_file.content_type == 'application/pdf':
                                     print(f"📎 Invoice PDF attached, sending via WhatsApp...")
                                     # Send PDF with caption
-                                    send_whatsapp_media(buyer_phone, invoice_file, message)
+                                    send_whatsapp_media(buyer_phone, invoice_file, message, whatsapp_creds)
                                 else:
                                     print(f"⚠️ Invalid file type: {invoice_file.content_type}. Only PDF allowed.")
                                     # Fall back to text-only
-                                    send_whatsapp_message(buyer_phone, message)
+                                    send_whatsapp_message(buyer_phone, message, seller_id, whatsapp_creds)
                             else:
                                 # Text-only message
-                                send_whatsapp_message(buyer_phone, message)
+                                send_whatsapp_message(buyer_phone, message, seller_id, whatsapp_creds)
                             print(f"✅ Payment status WhatsApp notification sent to {buyer_phone}")
                         except Exception as e:
                             print(f"⚠️ Failed to send payment status notification: {e}")
@@ -894,7 +923,8 @@ def approve_cancellation(order_id):
         # Send WhatsApp notification
         if buyer_phone and custom_message:
             try:
-                send_whatsapp_message(buyer_phone, custom_message)
+                whatsapp_creds = get_whatsapp_credentials(seller_id)
+                send_whatsapp_message(buyer_phone, custom_message, seller_id, whatsapp_creds)
                 print(f"✅ Cancellation approval notification sent to {buyer_phone}")
             except Exception as e:
                 print(f"⚠️ Failed to send cancellation notification: {e}")
@@ -934,7 +964,8 @@ def reject_cancellation(order_id):
         # Send WhatsApp notification
         if buyer_phone and custom_message:
             try:
-                send_whatsapp_message(buyer_phone, custom_message)
+                whatsapp_creds = get_whatsapp_credentials(seller_id)
+                send_whatsapp_message(buyer_phone, custom_message, seller_id, whatsapp_creds)
                 print(f"✅ Cancellation rejection notification sent to {buyer_phone}")
             except Exception as e:
                 print(f"⚠️ Failed to send cancellation notification: {e}")
@@ -1080,7 +1111,99 @@ def razorpay_webhook():
         return jsonify({'error': str(e)}), 500
 
 
+# ===== WHATSAPP AI ASSISTANT ENDPOINTS =====
+
+@app.route('/api/whatsapp/status', methods=['GET'])
+def get_whatsapp_status():
+    """Get WhatsApp AI Assistant activation status"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        from firebase_db import get_whatsapp_credentials
+        credentials = get_whatsapp_credentials(seller_id)
+        
+        if credentials:
+            return jsonify({
+                'active': True,
+                'phone_number_id': credentials.get('phone_number_id', '')
+            }), 200
+        else:
+            return jsonify({
+                'active': False
+            }), 200
+            
+    except Exception as e:
+        print(f"Error getting WhatsApp status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/whatsapp/activate', methods=['POST'])
+def activate_whatsapp():
+    """Activate WhatsApp AI Assistant with credentials"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        data = request.get_json()
+        phone_number_id = data.get('phone_number_id')
+        business_account_id = data.get('business_account_id')
+        access_token = data.get('access_token')
+        verify_token = data.get('verify_token')
+        
+        if not all([phone_number_id, business_account_id, access_token, verify_token]):
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        from firebase_db import save_whatsapp_credentials
+        result = save_whatsapp_credentials(
+            seller_id=seller_id,
+            phone_number_id=phone_number_id,
+            business_account_id=business_account_id,
+            access_token=access_token,
+            verify_token=verify_token
+        )
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'WhatsApp AI Assistant activated successfully'
+            }), 200
+        else:
+            return jsonify({'error': 'Failed to save credentials'}), 500
+            
+    except Exception as e:
+        print(f"Error activating WhatsApp: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/whatsapp/deactivate', methods=['POST'])
+def deactivate_whatsapp():
+    """Deactivate WhatsApp AI Assistant"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        from firebase_db import delete_whatsapp_credentials
+        result = delete_whatsapp_credentials(seller_id)
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'WhatsApp AI Assistant deactivated successfully'
+            }), 200
+        else:
+            return jsonify({'error': 'Failed to deactivate'}), 500
+            
+    except Exception as e:
+        print(f"Error deactivating WhatsApp: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ===== CUSTOMER CONVERSATION ENDPOINTS =====
+
 
 @app.route('/api/customers/<phone>/conversation', methods=['GET'])
 def get_customer_conversation(phone):
@@ -1119,7 +1242,8 @@ def send_customer_message(phone):
         
         # Send via WhatsApp
         from whatsapp_msg import send_whatsapp_message
-        result = send_whatsapp_message(phone, message, seller_id)
+        whatsapp_creds = get_whatsapp_credentials(seller_id)
+        result = send_whatsapp_message(phone, message, seller_id, whatsapp_creds)
         
         if result:
             return jsonify({

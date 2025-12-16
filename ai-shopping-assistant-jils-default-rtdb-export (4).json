@@ -1,0 +1,445 @@
+{
+  "processed_msgs": {
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM0QTk1QTQ2QkNBNEQyOENBOTFCMUJBMDk4QkJBNzYA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM1NjgwMDNBMzI5NEM3N0EwQ0E3QTQ4QURDQzk2RjgA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM1NkM4QjI2N0Y5M0Y4REU2M0UwRTM3NEUwN0I1M0YA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM1QTRDRUNFOEM2QjU3QjgzQkM0QzVDNEVGRjc4NDEA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM2MTczNzI1RTA5OEYxMTM3NUVDNzg4NUMwNzlBMEEA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM2RERGRjFDNkE1NDlGNEU4QjIxNzg3OEJBQTQxOEIA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM3MDJDOUY1OTVFOEM2NkQ2M0U5MjQxNjQxNjBFNTkA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM3MTk1NkM0MUI1NUIxMDU4QjJDOTczMTZCMUM1MzgA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM3MzY2RDVBNDI1N0Q0RUQ2RjRGMEUwREU2ODY0ODkA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUM3Njg5NTE1RkI5RjU5MzgyRjIwQjc3RDFCNUM3RTkA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMwNDc1QTI0RDc0RUIzNThFMjZCQkVENzVBQTAwRDcA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMwOUQ4NTIzQzE4OTlFMEVEOTk1NTM0NzYxOUM2MjYA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMwRTBFM0Y4RkMwNjdDMDM4N0Q3MEREQTkwQzg3RDAA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMxMzM5N0ZFNURDMEYwMzFCREU0MzIxNzA4RkI1RDkA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMyNEZBRUREOTZCOENFRDg2RjI5RENDMkVEODZFOEIA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMzMEM3Nzc1QTEzMzU3NUQxMDYyNjZCMUE4MDZDQ0UA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMzNDZEQkYwRTZEM0I0MTMyQjVGQ0Y5OURBMTNBNEUA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUMzRkM3MEEwMTI2OERGMEUzMDA1MzdBRDBGRkE2NzIA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNBNEUxRDA5OTZDMjdENEZGMTFDMzhEODQ1NkI2MUEA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNBNzk2RTEyRTI4Q0EzOTFGRUU1OTUxMTlFMEFENzEA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNCMjE1OTRGNzI0RkM2NTEwNEJCNUJDQTVDNEJDRUUA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNCMjUxODZDOUI5QTczNUM0NEIyN0JBMENGMTVENEUA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNCRDlGMTY0NUUyODk5MUVDN0MyRjgxMTg4N0YxNTQA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNCRTEwNjMyMEUyRUI1Q0JGNUJCNkNBQjQ1MDA0REMA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNERjFBQTUwQTBFNDk4NjJBRkUzM0FENUM3REVFOUIA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNFNkZCNUYxQjUwM0RBNDk1NEY1MTNCMkIxREMwRjcA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNFOTM4NjRDOUQ3N0Q0REM4QzczNDcwMzg4NDJFODQA": true,
+    "wamid_HBgMOTE3ODAxODMzODg0FQIAEhggQUNFRTUyMzk1NDY4NDUwNDI3OTMxNTlBMTc1NUQyQTUA": true
+  },
+  "sellers": {
+    "jilsnshah_at_gmail_dot_com": {
+      "company_info": {
+        "address": "123 Orchard Lane, Farmville",
+        "city": "Ahemdaba",
+        "company_description": "We sell the freshest apples and oranges directly from local farms",
+        "company_name": "Fresh Fruits ",
+        "country": "India",
+        "email": "sarah@freshfruits.com",
+        "id": 1,
+        "owner_name": "Sarah Johnson",
+        "phone": "555-0123",
+        "pincode": "380054",
+        "registered_at": "2025-11-17T10:00:00",
+        "state": "GUJARAT",
+        "upi_id": "7801833884@rapl"
+      },
+      "conv_history": {
+        "917801833884": {
+          "msg_1765894791931": {
+            "content": "Where to make the payment?",
+            "role": "user",
+            "timestamp": 1765894791931
+          },
+          "msg_1765894798365": {
+            "content": "Payment for your order is currently pending. For information on how to make your payment, please contact Fresh Fruits directly:\n\n*   **Phone:** 555-0123\n*   **Email:** sarah@freshfruits.com\n\nThey will be able to guide you through the payment process.",
+            "role": "assistant",
+            "timestamp": 1765894798365
+          },
+          "msg_1765894881690": {
+            "content": "⏳ *Payment Status Update* ⏳\n\nOrder ID: #8\nItems:\n- Jils x1\n- grapes x1\n- Fresh Red Apples x3\n- mango x1\nAmount: ₹117.97\n\nPayment status: *Pending*\n\nWe'll notify you once payment is requested.\n\nThank you! 🙏",
+            "role": "assistant",
+            "timestamp": 1765894881690
+          },
+          "msg_1765894923795": {
+            "content": "💳 *Payment Request* 💳\n\nOrder ID: #8\nItems:\n- Jils x1\n- grapes x1\n- Fresh Red Apples x3\n- mango x1\nAmount: *₹117.97*\n\nPlease pay to UPI ID:\n📱 *7801833884@rapl*\n\nAfter payment, please share the transaction screenshot for verification.\n\nThank you! 🙏",
+            "role": "assistant",
+            "timestamp": 1765894923795
+          },
+          "msg_1765894940780": {
+            "content": "Okay",
+            "role": "user",
+            "timestamp": 1765894940780
+          },
+          "msg_1765894949602": {
+            "content": "Great! I've noted that.\n\nPlease remember to share the transaction screenshot once you've made the payment so we can verify it. If you have any questions, just let me know!",
+            "role": "assistant",
+            "timestamp": 1765894949602
+          },
+          "msg_1765895015191": {
+            "content": "When can I expect my recent order",
+            "role": "user",
+            "timestamp": 1765895015191
+          },
+          "msg_1765895023909": {
+            "content": "Your recent order (ID: 8) is currently in \"Received\" status, and the payment is \"Requested\". Once your payment is verified, your order will be processed for delivery.\n\nWe'll let you know as soon as it's out for delivery!",
+            "role": "assistant",
+            "timestamp": 1765895023909
+          },
+          "msg_1765895064247": {
+            "content": "When can I expect my order 7",
+            "role": "user",
+            "timestamp": 1765895064247
+          },
+          "msg_1765895072303": {
+            "content": "I couldn't find an order with the ID \"7\" in your order history. I can see the following orders:\n\n*   **Order 1** (Date: 2025-11-23)\n*   **Order 2** (Date: 2025-12-10)\n*   **Order 11** (Date: 2025-12-10)\n*   **Order 12** (Date: 2025-12-14)\n*   **Order 8** (Date: 2025-12-16)\n\nDid you mean one of these orders, or perhaps a different order number?",
+            "role": "assistant",
+            "timestamp": 1765895072303
+          }
+        }
+      },
+      "customers": {
+        "917801833884": {
+          "created_at": "2025-11-23T00:00:00",
+          "name": "Jils",
+          "orders": [
+            {
+              "buyer_name": "Sample Buyer",
+              "buyer_phone": "917801833884",
+              "created_at": "2025-11-23T00:00:00",
+              "delivery_address": "123 Sample St, City",
+              "delivery_lat": 23.0225,
+              "delivery_lng": 72.5714,
+              "items": [
+                {
+                  "product_id": 1,
+                  "product_name": "Fresh Red Apples",
+                  "quantity": 2,
+                  "subtotal": 9.98,
+                  "unit_price": 4.99
+                }
+              ],
+              "order_id": 1,
+              "order_status": "Received",
+              "payment_status": "Pending",
+              "seller_id": 1,
+              "total_amount": 9.98
+            },
+            {
+              "buyer_name": "Sample Buyer",
+              "buyer_phone": "917801833884",
+              "created_at": "2025-12-10T02:30:20.423898",
+              "delivery_address": "23 B niranjan society ahemdabad",
+              "delivery_lat": 23.0225,
+              "delivery_lng": 72.5714,
+              "items": [
+                {
+                  "product_id": 1,
+                  "product_name": "Fresh Red Apples",
+                  "quantity": 10,
+                  "subtotal": 49.9,
+                  "unit_price": 4.99
+                }
+              ],
+              "order_id": 2,
+              "order_status": "Received",
+              "payment_status": "Pending",
+              "seller_id": 1,
+              "total_amount": 49.9
+            },
+            {
+              "buyer_name": "Sample Buyer",
+              "buyer_phone": "917801833884",
+              "created_at": "2025-12-10T15:15:27.205242",
+              "delivery_address": "Test Address, Ahmedabad",
+              "delivery_lat": 23.0225,
+              "delivery_lng": 72.5714,
+              "items": [
+                {
+                  "product_id": 1,
+                  "product_name": "Fresh Red Apples",
+                  "quantity": 5,
+                  "subtotal": 24.950000000000003,
+                  "unit_price": 4.99
+                },
+                {
+                  "product_id": 2,
+                  "product_name": "Juicy Oranges",
+                  "quantity": 3,
+                  "subtotal": 11.97,
+                  "unit_price": 3.99
+                }
+              ],
+              "order_id": 11,
+              "order_status": "Received",
+              "payment_status": "Pending",
+              "seller_id": 1,
+              "total_amount": 36.92
+            },
+            {
+              "buyer_name": "Jils",
+              "buyer_phone": "917801833884",
+              "created_at": "2025-12-14T15:10:42.471281",
+              "delivery_address": "23B Niranjan Society",
+              "delivery_lat": 25.5410681,
+              "delivery_lng": 84.8528856,
+              "items": [
+                {
+                  "product_id": 3,
+                  "product_name": "mango",
+                  "quantity": 4,
+                  "subtotal": 8,
+                  "unit_price": 2
+                },
+                {
+                  "product_id": 5,
+                  "product_name": "Muse",
+                  "quantity": 4,
+                  "subtotal": 400,
+                  "unit_price": 100
+                }
+              ],
+              "order_id": 12,
+              "order_status": "Received",
+              "payment_status": "Pending",
+              "seller_id": 1,
+              "total_amount": 408
+            },
+            {
+              "order_id": 8,
+              "seller_id": "jilsnshah_at_gmail_dot_com"
+            }
+          ],
+          "phone_number": "917801833884"
+        }
+      },
+      "orders": [
+        null,
+        {
+          "buyer_name": "Emily Rodriguez",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T11:30:00",
+          "delivery_address": "789 Oak Avenue, Riverside",
+          "delivery_lat": 23.03,
+          "delivery_lng": 72.58,
+          "items": [
+            {
+              "product_id": 2,
+              "product_name": "Juicy Oranges",
+              "quantity": 1,
+              "subtotal": 3.99,
+              "unit_price": 3.99
+            }
+          ],
+          "order_id": 2,
+          "order_status": "Received",
+          "payment_status": "Verified",
+          "seller_id": 1,
+          "total_amount": 3.99
+        },
+        {
+          "buyer_name": "David Thompson",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T12:00:00",
+          "delivery_address": "321 Pine Road, Hilltown",
+          "delivery_lat": 23.04,
+          "delivery_lng": 72.59,
+          "items": [
+            {
+              "product_id": 1,
+              "product_name": "Fresh Red Apples",
+              "quantity": 1,
+              "subtotal": 4.99,
+              "unit_price": 4.99
+            }
+          ],
+          "order_id": 3,
+          "order_status": "To Deliver",
+          "payment_status": "Verified",
+          "seller_id": 1,
+          "total_amount": 4.99
+        },
+        {
+          "buyer_name": "John Doe",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T23:44:08.226447",
+          "delivery_address": "123 Main St, Springfield",
+          "delivery_lat": 23.0225,
+          "delivery_lng": 72.5714,
+          "items": [
+            {
+              "product_id": 1,
+              "product_name": "Fresh Red Apples",
+              "quantity": 4,
+              "subtotal": 19.96,
+              "unit_price": 4.99
+            }
+          ],
+          "order_id": 4,
+          "order_status": "Ready to Deliver",
+          "payment_status": "Pending",
+          "seller_id": 1,
+          "total_amount": 19.96
+        },
+        {
+          "buyer_name": "John Doe",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T23:47:07.685296",
+          "delivery_address": "123 Main St, Springfield",
+          "delivery_lat": 23.0225,
+          "delivery_lng": 72.5714,
+          "items": [
+            {
+              "product_id": 1,
+              "product_name": "Fresh Red Apples",
+              "quantity": 4,
+              "subtotal": 19.96,
+              "unit_price": 4.99
+            }
+          ],
+          "order_id": 5,
+          "order_status": "Ready to Deliver",
+          "payment_status": "Requested",
+          "seller_id": 1,
+          "total_amount": 19.96
+        },
+        {
+          "buyer_name": "John Doe",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T23:47:09.902993",
+          "delivery_address": "123 Main St, Springfield",
+          "delivery_lat": 23.0225,
+          "delivery_lng": 72.5714,
+          "items": [
+            {
+              "product_id": 2,
+              "product_name": "Juicy Oranges",
+              "quantity": 8,
+              "subtotal": 31.92,
+              "unit_price": 3.99
+            }
+          ],
+          "order_id": 6,
+          "order_status": "Cancelled",
+          "payment_status": "Requested",
+          "seller_id": 1,
+          "total_amount": 31.92
+        },
+        {
+          "buyer_name": "Kunal Chandola",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-11-17T23:49:59.086335",
+          "delivery_address": "Ahmedabad",
+          "delivery_lat": 23.0225,
+          "delivery_lng": 72.5714,
+          "items": [
+            {
+              "product_id": 2,
+              "product_name": "Juicy Oranges",
+              "quantity": 6,
+              "subtotal": 23.94,
+              "unit_price": 3.99
+            }
+          ],
+          "order_id": 7,
+          "order_status": "To Deliver",
+          "payment_status": "Requested",
+          "seller_id": 1,
+          "total_amount": 23.94
+        },
+        {
+          "buyer_name": "Jils",
+          "buyer_phone": "917801833884",
+          "created_at": "2025-12-16T19:43:38.324987",
+          "delivery_address": "23B Niranjan Society",
+          "delivery_lat": 23.047538,
+          "delivery_lng": 72.535795623,
+          "items": [
+            {
+              "product_id": 5,
+              "product_name": "Jils",
+              "quantity": 1,
+              "subtotal": 100,
+              "unit_price": 100
+            },
+            {
+              "product_id": 4,
+              "product_name": "grapes",
+              "quantity": 1,
+              "subtotal": 1,
+              "unit_price": 1
+            },
+            {
+              "product_id": 1,
+              "product_name": "Fresh Red Apples",
+              "quantity": 3,
+              "subtotal": 14.97,
+              "unit_price": 4.99
+            },
+            {
+              "product_id": 3,
+              "product_name": "mango",
+              "quantity": 1,
+              "subtotal": 2,
+              "unit_price": 2
+            }
+          ],
+          "order_id": 8,
+          "order_status": "Received",
+          "payment_status": "Requested",
+          "seller_id": 1,
+          "total_amount": 117.97
+        }
+      ],
+      "products": [
+        {
+          "created_at": "2025-11-17T10:15:00",
+          "description": "Crispy and sweet red apples, perfect for snacking or baking. Freshly picked from local orchards.",
+          "id": 1,
+          "price": 4.99,
+          "seller_id": 1,
+          "title": "Fresh Red Apples"
+        },
+        {
+          "created_at": "2025-11-17T10:20:00",
+          "description": "Sweet and tangy oranges packed with Vitamin C. Great for fresh juice or eating.",
+          "id": 2,
+          "price": 3.99,
+          "seller_id": 1,
+          "title": "Juicy Oranges"
+        },
+        {
+          "created_at": "2025-11-17T23:51:05.677161",
+          "description": "fruit",
+          "id": 3,
+          "price": 2,
+          "seller_id": 1,
+          "title": "mango"
+        },
+        {
+          "category": "Food",
+          "created_at": "2025-12-10T02:31:58.522050",
+          "description": "grapes",
+          "id": 4,
+          "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/1200px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg",
+          "price": 1,
+          "seller_id": 1,
+          "stock_quantity": 10000,
+          "title": "grapes"
+        },
+        {
+          "category": "Human",
+          "created_at": "2025-12-14T22:58:26.891574",
+          "description": "Live Human Flesh",
+          "id": 5,
+          "image_url": "",
+          "price": 100,
+          "stock_quantity": 1000,
+          "title": "Jils"
+        }
+      ]
+    }
+  }
+}
