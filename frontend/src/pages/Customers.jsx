@@ -91,7 +91,8 @@ export default function Customers() {
 
         // Create reference to conversation path
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
-        const buyerPhoneSafe = selectedCustomer.phone.replace(/[.#$/\[\]]/g, '_');
+        const phoneStr = String(selectedCustomer.phone || '');
+        const buyerPhoneSafe = phoneStr.replace(/[.#$/\\[\\]]/g, '_');
         const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);
 
         // Set up real-time listener
