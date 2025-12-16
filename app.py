@@ -561,8 +561,12 @@ def update_order(order_id):
                 if 'delivery_lng' in data:
                     order['delivery_lng'] = data['delivery_lng']
                 
-                # Save to Firebase
-                save_data_to_firebase(seller_id)
+                # Save to Firebase - use targeted update for status fields only
+                from firebase_db import update_order_status
+                update_order_status(seller_id, order_id, 
+                    order_status=new_order_status if order_status_changed else None,
+                    payment_status=new_payment_status if payment_status_changed else None
+                )
                 
                 buyer_phone = order.get('buyer_phone')
                 

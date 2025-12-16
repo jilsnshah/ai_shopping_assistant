@@ -225,6 +225,7 @@ def load_sellers_data():
 def save_seller_data(seller_id, seller_data):
     """
     Save specific seller data to Firebase.
+    Uses update() instead of set() to avoid overwriting other data like conv_history, customers, etc.
     
     Args:
         seller_id (str): Seller ID
@@ -238,7 +239,8 @@ def save_seller_data(seller_id, seller_data):
         # Sanitize email for Firebase path (emails contain . and @ which are not allowed)
         safe_seller_id = sanitize_email_for_firebase(seller_id)
         seller_ref = db.reference(f'sellers/{safe_seller_id}')
-        seller_ref.set(seller_data)
+        # Use update() instead of set() to preserve other data (conv_history, customers, etc.)
+        seller_ref.update(seller_data)
         return True
     except Exception as e:
         print(f"Error saving seller {seller_id} data to Firebase: {e}")
@@ -280,7 +282,7 @@ def add_order(seller_id, order):
 
 
 def update_order_status(seller_id, order_id, order_status=None, payment_status=None):
-    """Update order status in Firebase for specific seller"""
+    """Update order status in Firebase for specific seller - updates only the specific order"""
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
@@ -288,12 +290,17 @@ def update_order_status(seller_id, order_id, order_status=None, payment_status=N
         orders = orders_ref.get() or []
         
         for i, order in enumerate(orders):
+            if order is None:
+                continue
             if order.get('order_id') == order_id or order.get('id') == order_id:
+                # Update only the specific order at index i
+                order_ref = db.reference(f'sellers/{safe_seller_id}/orders/{i}')
+                updates = {}
                 if order_status:
-                    orders[i]['order_status'] = order_status
+                    updates['order_status'] = order_status
                 if payment_status:
-                    orders[i]['payment_status'] = payment_status
-                orders_ref.set(orders)
+                    updates['payment_status'] = payment_status
+                order_ref.update(updates)
                 return True
         
         return False
