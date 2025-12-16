@@ -230,7 +230,7 @@ export default function Customers() {
                             {/* Content */}
                             <div className="flex-1 overflow-hidden">
                                 {activeTab === 'orders' ? (
-                                    <div className="p-6 h-[500px] overflow-y-auto custom-scrollbar">
+                                    <div className="p-6 h-[400px] overflow-y-auto custom-scrollbar">
                                         <h3 className="text-lg font-semibold text-white mb-4">Order History</h3>
                                         <div className="space-y-4">
                                             {selectedCustomer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((order) => (
@@ -262,7 +262,7 @@ export default function Customers() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col h-[500px]">
+                                    <div className="flex flex-col h-[400px]">
                                         {/* Messages */}
                                         <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-950/30">
                                             {loadingConversation ? (
