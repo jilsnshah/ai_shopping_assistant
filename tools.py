@@ -544,10 +544,14 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
                 "order_details": order
             }
     
-    # Add order to buyer's orders
+    # Add order REFERENCE to buyer's orders (seller_id + order_id only)
+    # This prevents data duplication - full order data lives in sellers/{seller_id}/orders
     if 'orders' not in buyer:
         buyer['orders'] = []
-    buyer['orders'].append(order)
+    buyer['orders'].append({
+        'seller_id': seller_id,
+        'order_id': order_id
+    })
     
     # Clear cart after successful order
     buyer['cart'] = []
@@ -806,7 +810,29 @@ def get_my_orders(query: str) -> str:
         return "No orders found for this number. Would you like to place your first order?"
     
     buyer = buyers_data['buyers'][phone_number]
-    orders = buyer.get('orders', [])
+    order_refs = buyer.get('orders', [])
+    
+    if not order_refs:
+        return f"Hi {buyer.get('name', 'there')}! You haven't placed any orders yet."
+    
+    # Fetch complete order data from sellers using references
+    orders = []
+    for ref in order_refs:
+        if ref is None:
+            continue
+        # Handle both old format (full order) and new format (reference only)
+        if isinstance(ref, dict) and 'seller_id' in ref and 'order_id' in ref and 'buyer_phone' not in ref:
+            # New reference format - fetch from seller
+            seller_id = ref.get('seller_id')
+            order_id = ref.get('order_id')
+            seller_data = load_sample_data(seller_id)
+            for order in seller_data.get('orders', []):
+                if order and (order.get('order_id') == order_id or order.get('id') == order_id):
+                    orders.append(order)
+                    break
+        elif isinstance(ref, dict):
+            # Old format - full order object (backward compatibility)
+            orders.append(ref)
     
     if not orders:
         return f"Hi {buyer.get('name', 'there')}! You haven't placed any orders yet."
