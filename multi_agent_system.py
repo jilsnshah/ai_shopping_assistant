@@ -33,7 +33,7 @@ def create_shopping_agent(gemini_api_key):
     
     # Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash-exp",
+        model="gemini-2.5-flash",
         temperature=0.7,
         google_api_key=gemini_api_key
     )
