@@ -64,8 +64,26 @@ export default function Customers() {
     useEffect(() => {
         if (selectedCustomer && activeTab === 'conversation') {
             fetchConversation();
+
+            // Set up polling for real-time updates (every 3 seconds)
+            const pollInterval = setInterval(() => {
+                fetchConversation();
+            }, 3000);
+
+            // Cleanup interval on unmount or when tab changes
+            return () => clearInterval(pollInterval);
         }
     }, [selectedCustomer, activeTab]);
+
+    // Auto-scroll to bottom when conversation updates
+    useEffect(() => {
+        if (conversation.length > 0) {
+            const messagesContainer = document.getElementById('messages-container');
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+    }, [conversation]);
 
     const fetchConversation = async () => {
         if (!selectedCustomer) return;
@@ -264,7 +282,7 @@ export default function Customers() {
                                 ) : (
                                     <div className="flex flex-col h-[400px]">
                                         {/* Messages */}
-                                        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-950/30">
+                                        <div id="messages-container" className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-950/30">
                                             {loadingConversation ? (
                                                 <div className="flex items-center justify-center h-full">
                                                     <div className="text-slate-400">Loading conversation...</div>
