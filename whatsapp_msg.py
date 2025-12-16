@@ -186,8 +186,8 @@ def collect_buyer_name(phone_number: str, message: str, agent) -> dict:
         }
 
 
-def send_whatsapp_message(phone_number: str, message: str):
-    """Send a message via WhatsApp Business API"""
+def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
+    """Send a message via WhatsApp Business API and save to Firebase"""
     url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
     
     headers = {
@@ -210,6 +210,11 @@ def send_whatsapp_message(phone_number: str, message: str):
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         print(f"✅ Message sent to {phone_number}")
+        
+        # Save outgoing message to Firebase
+        from firebase_db import save_conversation_message
+        save_conversation_message(seller_id, phone_number, "assistant", message)
+        
         return response.json()
     except Exception as e:
         print(f"❌ Error sending message: {e}")
@@ -292,13 +297,14 @@ def send_whatsapp_media(phone_number: str, media_file, caption: str = ""):
 # Name collection agents cache (phone_number -> agent)
 name_collection_agents = {}
 
-def process_whatsapp_message(phone_number: str, message_text: str):
+def process_whatsapp_message(phone_number: str, message_text: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
     """Process incoming WhatsApp message and generate response using single agent system"""
     try:
         print(f"\n📱 Processing message from {phone_number}: {message_text}")
         
-        # Import check_buyer_profile and create_buyer_profile from tools
+        # Import functions
         from tools import check_buyer_profile, create_buyer_profile
+        from firebase_db import save_conversation_message, get_conversation_history
         
         # Check if buyer profile exists
         buyer_profile = check_buyer_profile(phone_number)
@@ -328,12 +334,19 @@ def process_whatsapp_message(phone_number: str, message_text: str):
                     if phone_number in name_collection_agents:
                         del name_collection_agents[phone_number]
                     
+                    # Save incoming message to Firebase
+                    save_conversation_message(seller_id, phone_number, "user", message_text)
+                    
+                    # Get conversation history
+                    history = get_conversation_history(seller_id, phone_number, limit=10)
+                    
                     # Get main orchestrator and send welcome message
                     orchestrator = get_or_create_orchestrator()
                     welcome_response = orchestrator["process_message"](
                         "Hi, I'd like to see what products you have", 
                         phone_number,
-                        buyer_name=confirmed_name
+                        buyer_name=confirmed_name,
+                        history=history
                     )
                     
                     return f"Thank you, {confirmed_name}! Your profile has been created. ✅\n\n{welcome_response}"
@@ -347,11 +360,22 @@ def process_whatsapp_message(phone_number: str, message_text: str):
             buyer_name = buyer_profile.get('name')
             print(f"👤 Existing buyer: {buyer_name} ({phone_number})")
             
+            # Save incoming message to Firebase
+            save_conversation_message(seller_id, phone_number, "user", message_text)
+            
+            # Get conversation history from Firebase
+            history = get_conversation_history(seller_id, phone_number, limit=10)
+            
             # Get orchestrator instance
             orchestrator = get_or_create_orchestrator()
             
-            # Process message through agent with buyer context
-            agent_response = orchestrator["process_message"](message_text, phone_number, buyer_name=buyer_name)
+            # Process message through agent with buyer context and history
+            agent_response = orchestrator["process_message"](
+                message_text, 
+                phone_number, 
+                buyer_name=buyer_name,
+                history=history
+            )
             
             print(f"🤖 Agent response: {agent_response}\n")
             

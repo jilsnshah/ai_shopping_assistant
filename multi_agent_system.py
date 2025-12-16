@@ -1,19 +1,13 @@
 """
 Simple LangChain Agent for Shopping Assistant
-Uses @tool decorator and create_agent with PostgreSQL-backed memory (Google Cloud SQL)
+Memoryless agent - conversation history managed by Firebase
 """
-
 
 from dotenv import load_dotenv
 load_dotenv()
-from langchain.agents import create_agent, AgentState
-from langchain.agents.middleware import before_model
+from langchain.agents import create_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.messages import RemoveMessage
-from langgraph.graph.message import REMOVE_ALL_MESSAGES
-from langgraph.runtime import Runtime
 from datetime import datetime
-from typing import Any
 
 from tools import (
     set_current_user,
@@ -30,69 +24,16 @@ from tools import (
     empty_shopping_cart,
     create_order,
     get_my_orders,
-    request_cancellation
 )
-
-# Import PostgreSQL checkpointer for persistent memory (Google Cloud SQL)
-try:
-    from langgraph.checkpoint.postgres import PostgresSaver
-    POSTGRES_MEMORY_ENABLED = True
-except ImportError:
-    print("Warning: PostgreSQL checkpointer not available. Falling back to in-memory.")
-    from langgraph.checkpoint.memory import InMemorySaver
-    POSTGRES_MEMORY_ENABLED = False
-
-# Cloud SQL connection string (direct connection to public IP)
-DB_HOST = "34.55.153.221"  # Cloud SQL public IP
-DB_PORT = "5432"
-DB_USER = "postgres"
-DB_PASS = "PostgresAdmin2024"
-DB_NAME = "langgraph"
-DB_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-
-# ==================== MEMORY MANAGEMENT ====================
-@before_model
-def trim_messages_middleware(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-    """Keep only the last 6 messages to fit context window and maintain conversation flow.
-    
-    This middleware:
-    - Keeps the first message (usually system prompt or greeting)
-    - Keeps the last 6 messages (3 user-assistant exchanges)
-    - Removes all messages in between to prevent context overflow
-    """
-    messages = state["messages"]
-    
-    # If we have 8 or fewer messages, no trimming needed
-    if len(messages) <= 8:
-        return None
-    
-    # Keep first message (system/initial context)
-    first_msg = messages[0]
-    
-    # Keep last 6 messages (recent conversation)
-    recent_messages = messages[-6:]
-    
-    # Create new message list
-    new_messages = [first_msg] + recent_messages
-    
-    print(f"🧹 Trimming messages: {len(messages)} → {len(new_messages)}")
-    
-    return {
-        "messages": [
-            RemoveMessage(id=REMOVE_ALL_MESSAGES),
-            *new_messages
-        ]
-    }
 
 
 # ==================== AGENT SETUP ====================
 def create_shopping_agent(gemini_api_key):
-    """Create an agent with tools using create_agent"""
+    """Create a memoryless agent with tools using create_agent"""
     
     # Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash-exp",
         temperature=0.7,
         google_api_key=gemini_api_key
     )
@@ -234,7 +175,7 @@ When a customer wants to order:
 - Always present products by name, description, and price
 - When customer says a product name, find the matching product_id from the catalog internally
 - Never make up prices - always use tools to get accurate data
-- If user asks for cancellation of a order , show him company contact details and tell him to contact company directly 
+- If user asks for cancellation of a order, show him company contact details and tell him to contact company directly 
 - Cart must have items before calling create_order
 - Always show cart contents before finalizing order
 - If a tool returns an error, explain it to the customer in a friendly way
@@ -257,36 +198,19 @@ When a customer wants to order:
 - Order updates from admin portal trigger WhatsApp notifications to buyers
 
 Remember: You're chatting with customers via WhatsApp, so be conversational and helpful like a real store assistant! 🌟"""
-
-    # Create PostgreSQL checkpointer for persistent conversation memory (Google Cloud SQL)
-    if POSTGRES_MEMORY_ENABLED:
-        # Initialize checkpointer with Cloud SQL connection string
-        # The context manager needs to stay open, so we use sync_connection
-        import psycopg
-        from psycopg.rows import dict_row
-        
-        conn = psycopg.connect(DB_URI, autocommit=True, row_factory=dict_row)
-        checkpointer = PostgresSaver(conn)
-        checkpointer.setup()  # Creates required tables
-        print("✓ PostgreSQL checkpointer initialized (Google Cloud SQL)")
-    else:
-        from langgraph.checkpoint.memory import InMemorySaver
-        checkpointer = InMemorySaver()
     
-    # Create agent using create_agent (correct signature from docs)
+    # Create agent without checkpointer (memoryless)
     agent = create_agent(
-        llm,  # model as first positional argument
+        llm,
         tools=tools,
-        system_prompt=system_prompt,
-        middleware=[trim_messages_middleware],  # Add message trimming
-        checkpointer=checkpointer  # PostgreSQL or in-memory checkpointer
+        system_prompt=system_prompt
     )
     
     return agent
 
 
 # ==================== MESSAGE PROCESSING ====================
-def process_message(user_message, phone_number, agent, buyer_name=None):
+def process_message(user_message, phone_number, agent, buyer_name=None, conversation_history=None):
     """Process user message through the agent
     
     Args:
@@ -294,6 +218,7 @@ def process_message(user_message, phone_number, agent, buyer_name=None):
         phone_number: User's phone number
         agent: The agent instance
         buyer_name: Optional buyer name (used when greeting returning customers)
+        conversation_history: List of previous messages from Firebase
     """
     
     # Set current user in tools.py
@@ -305,22 +230,25 @@ def process_message(user_message, phone_number, agent, buyer_name=None):
     print(f"{'='*60}\n")
     
     try:
-        # Add buyer context to message if this is a returning customer
-        if buyer_name:
+        # Prepare messages list
+        messages = conversation_history if conversation_history else []
+        
+        # Add buyer context if this is a returning customer
+        if buyer_name and len(messages) == 0:
             user_message_with_context = f"[SYSTEM: This is {buyer_name}, a returning customer] {user_message}"
         else:
             user_message_with_context = user_message
         
-        # Invoke agent with messages format and thread_id for memory persistence
-        response = agent.invoke(
-            {"messages": [{"role": "user", "content": user_message_with_context}]},
-            {"configurable": {"thread_id": phone_number}}  # Use phone number as thread_id
-        )
+        # Add current user message
+        messages.append({"role": "user", "content": user_message_with_context})
         
-        # Extract output from response - handle different response formats
-        messages = response.get("messages", [])
-        if messages:
-            last_message = messages[-1]
+        # Invoke agent with messages
+        response = agent.invoke({"messages": messages})
+        
+        # Extract output from response
+        messages_response = response.get("messages", [])
+        if messages_response:
+            last_message = messages_response[-1]
             
             # Handle different content formats
             if hasattr(last_message, 'content'):
@@ -367,6 +295,6 @@ def get_orchestrator(gemini_api_key):
     
     return {
         "agent": agent_executor,
-        "process_message": lambda msg, phone, buyer_name=None: process_message(msg, phone, agent_executor, buyer_name),
+        "process_message": lambda msg, phone, buyer_name=None, history=None: process_message(msg, phone, agent_executor, buyer_name, history),
         "reset": reset_conversation
     }

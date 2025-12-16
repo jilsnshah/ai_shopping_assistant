@@ -644,6 +644,139 @@ def request_order_cancellation(order_id):
         }
 
 
+
+# ==================== CONVERSATION HISTORY ====================
+
+def save_conversation_message(seller_id, buyer_phone, role, content):
+    """
+    Save a conversation message to Firebase
+    Keeps only last 10 messages per buyer
+    
+    Args:
+        seller_id (str): Seller ID
+        buyer_phone (str): Buyer's phone number
+        role (str): 'user' or 'assistant'
+        content (str): Message content
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        safe_buyer_id = sanitize_email_for_firebase(buyer_phone)
+        
+        # Reference to conversation history
+        conv_ref = db.reference(f'sellers/{safe_seller_id}/conv_history/{safe_buyer_id}')
+        
+        # Get existing messages
+        existing_messages = conv_ref.get() or {}
+        
+        # Create new message
+        import time
+        timestamp = int(time.time() * 1000)  # milliseconds
+        message_id = f"msg_{timestamp}"
+        
+        new_message = {
+            "timestamp": timestamp,
+            "role": role,
+            "content": content
+        }
+        
+        # Add new message
+        existing_messages[message_id] = new_message
+        
+        # Keep only last 10 messages
+        sorted_messages = sorted(existing_messages.items(), key=lambda x: x[1]['timestamp'])
+        if len(sorted_messages) > 10:
+            sorted_messages = sorted_messages[-10:]
+        
+        # Save back to Firebase
+        trimmed_messages = {msg_id: msg_data for msg_id, msg_data in sorted_messages}
+        conv_ref.set(trimmed_messages)
+        
+        print(f"✅ Saved {role} message to Firebase for {buyer_phone}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error saving conversation message: {e}")
+        return False
+
+
+def get_conversation_history(seller_id, buyer_phone, limit=10):
+    """
+    Get conversation history for a buyer
+    
+    Args:
+        seller_id (str): Seller ID
+        buyer_phone (str): Buyer's phone number
+        limit (int): Maximum number of messages to retrieve (default: 10)
+        
+    Returns:
+        list: List of messages [{role, content}, ...] ordered by timestamp
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        safe_buyer_id = sanitize_email_for_firebase(buyer_phone)
+        
+        # Reference to conversation history
+        conv_ref = db.reference(f'sellers/{safe_seller_id}/conv_history/{safe_buyer_id}')
+        
+        # Get all messages
+        all_messages = conv_ref.get() or {}
+        
+        if not all_messages:
+            return []
+        
+        # Sort by timestamp and limit
+        sorted_messages = sorted(all_messages.items(), key=lambda x: x[1]['timestamp'])
+        sorted_messages = sorted_messages[-limit:]
+        
+        # Format for agent
+        messages = []
+        for msg_id, msg_data in sorted_messages:
+            messages.append({
+                "role": msg_data["role"],
+                "content": msg_data["content"]
+            })
+        
+        print(f"✅ Retrieved {len(messages)} messages from Firebase for {buyer_phone}")
+        return messages
+        
+    except Exception as e:
+        print(f"❌ Error getting conversation history: {e}")
+        return []
+
+
+def clear_conversation_history(seller_id, buyer_phone):
+    """
+    Clear conversation history for a buyer
+    
+    Args:
+        seller_id (str): Seller ID
+        buyer_phone (str): Buyer's phone number
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        safe_buyer_id = sanitize_email_for_firebase(buyer_phone)
+        
+        # Reference to conversation history
+        conv_ref = db.reference(f'sellers/{safe_seller_id}/conv_history/{safe_buyer_id}')
+        conv_ref.delete()
+        
+        print(f"✅ Cleared conversation history for {buyer_phone}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error clearing conversation history: {e}")
+        return False
+
+
 # ==================== AGENT MEMORY ====================
 
 def get_agent_memory_ref():
