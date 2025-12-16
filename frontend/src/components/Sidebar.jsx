@@ -13,7 +13,7 @@ const sidebarItems = [
     { icon: ShoppingCart, label: 'Orders', path: '/orders', enabled: true },
     { icon: Users, label: 'Customers', path: '/customers', enabled: true },
     { icon: CreditCard, label: 'Payments', path: '/payments', enabled: true },
-    { icon: RefreshCcw, label: 'Cancellations', path: '/cancellations', enabled: true },
+    { icon: RefreshCcw, label: 'Cancellations', path: '/cancellations', enabled: false },
     { icon: Workflow, label: 'Automation', path: '/automation', enabled: false },
     { icon: Settings, label: 'Integrations', path: '/integrations', enabled: false },
 ];
