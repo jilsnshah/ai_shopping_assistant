@@ -60,18 +60,42 @@ export default function Customers() {
         fetchCustomers();
     }, []);
 
-    // Fetch conversation when tab changes
+    // Set up Firebase real-time listener for conversation
     useEffect(() => {
         if (selectedCustomer && activeTab === 'conversation') {
-            fetchConversation();
+            // Import Firebase
+            import('../firebase/config').then(({ database }) => {
+                const { ref, onValue, off } = require('firebase/database');
 
-            // Set up polling for real-time updates (every 10 seconds to reduce Firebase costs)
-            const pollInterval = setInterval(() => {
-                fetchConversation();
-            }, 10000); // Changed from 3000ms to 10000ms
+                // Create reference to conversation path
+                const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+                const buyerPhoneSafe = selectedCustomer.phone.replace(/[.#$/\[\]]/g, '_');
+                const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);
 
-            // Cleanup interval on unmount or when tab changes
-            return () => clearInterval(pollInterval);
+                // Set up real-time listener
+                const unsubscribe = onValue(conversationRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        // Convert Firebase object to array and sort by timestamp
+                        const messages = Object.values(data)
+                            .sort((a, b) => a.timestamp - b.timestamp)
+                            .map(msg => ({
+                                role: msg.role,
+                                content: msg.content,
+                                timestamp: msg.timestamp
+                            }));
+                        setConversation(messages);
+                    } else {
+                        setConversation([]);
+                    }
+                    setLoadingConversation(false);
+                });
+
+                // Cleanup listener on unmount or when tab changes
+                return () => {
+                    off(conversationRef);
+                };
+            });
         }
     }, [selectedCustomer, activeTab]);
 
@@ -283,8 +307,9 @@ export default function Customers() {
                                     <div className="flex flex-col h-[400px]">
                                         {/* Messages Header with Refresh */}
                                         <div className="flex items-center justify-between px-6 py-2 border-b border-slate-800/50">
-                                            <span className="text-xs text-slate-500">
-                                                Updates every 10 seconds
+                                            <span className="text-xs text-slate-500 flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                Real-time updates
                                             </span>
                                             <button
                                                 onClick={() => fetchConversation()}
