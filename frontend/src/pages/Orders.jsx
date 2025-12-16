@@ -92,7 +92,13 @@ export default function Orders() {
 
         const unsubscribe = onValue(ordersRef, (snapshot) => {
             const data = snapshot.val();
-            setOrders(data || []);
+            // Firebase returns arrays as objects with numeric keys, convert back to array
+            if (data) {
+                const ordersArray = Array.isArray(data) ? data : Object.values(data);
+                setOrders(ordersArray.filter(Boolean)); // Remove any null/undefined entries
+            } else {
+                setOrders([]);
+            }
             setLoading(false);
         }, (error) => {
             console.error("Firebase listener error:", error);

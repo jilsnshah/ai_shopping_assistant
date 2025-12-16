@@ -34,7 +34,9 @@ export default function Payments() {
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
         const unsubscribe = onValue(ordersRef, (snapshot) => {
-            const orders = snapshot.val() || [];
+            const data = snapshot.val();
+            // Firebase returns arrays as objects with numeric keys, convert back to array
+            const orders = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
 
             const collected = orders
                 .filter(o => o.payment_status === 'Completed')
