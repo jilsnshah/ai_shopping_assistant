@@ -35,15 +35,17 @@ export default function Customers() {
             }
 
             const customerList = customerIds.map(phone => {
-                const customerOrders = ordersData.filter(order => order.buyer_phone === phone);
+                // Convert phone to string for comparison
+                const phoneStr = String(phone);
+                const customerOrders = ordersData.filter(order => String(order.buyer_phone) === phoneStr);
 
                 // Get name from first order or use phone
                 const name = customerOrders.length > 0
-                    ? (customerOrders[0].buyer_name || phone)
-                    : phone;
+                    ? (customerOrders[0].buyer_name || phoneStr)
+                    : phoneStr;
 
                 return {
-                    phone: phone,
+                    phone: phoneStr,
                     name: name,
                     totalOrders: customerOrders.length,
                     totalSpent: customerOrders.reduce((sum, order) => sum + (order.total_amount || order.amount || 0), 0),
