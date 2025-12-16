@@ -19,13 +19,15 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
-        // Set up Firebase real-time listeners for customer IDs and orders
+        // Set up Firebase real-time listeners for customer IDs, buyers, and orders
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const customerIdsRef = ref(database, `sellers/${sellerIdSafe}/customers`);
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
+        const buyersRef = ref(database, 'buyers');
 
         let customerIds = [];
         let ordersData = [];
+        let buyersData = {};
 
         const processCustomerData = () => {
             if (!customerIds || customerIds.length === 0) {
@@ -37,12 +39,14 @@ export default function Customers() {
             const customerList = customerIds.map(phone => {
                 // Convert phone to string for comparison
                 const phoneStr = String(phone);
+
+                // Get buyer info from buyers collection
+                const buyerInfo = buyersData[phoneStr] || {};
+
                 const customerOrders = ordersData.filter(order => String(order.buyer_phone) === phoneStr);
 
-                // Get name from first order or use phone
-                const name = customerOrders.length > 0
-                    ? (customerOrders[0].buyer_name || phoneStr)
-                    : phoneStr;
+                // Get name from buyers collection first, then orders, then use phone
+                const name = buyerInfo.name || (customerOrders.length > 0 ? customerOrders[0].buyer_name : null) || phoneStr;
 
                 return {
                     phone: phoneStr,
@@ -75,13 +79,19 @@ export default function Customers() {
             const data = snapshot.val();
             ordersData = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
             console.log('Orders received:', ordersData.length);
-            console.log('Sample order:', ordersData[0]);
+            processCustomerData();
+        });
+
+        const unsubscribeBuyers = onValue(buyersRef, (snapshot) => {
+            buyersData = snapshot.val() || {};
+            console.log('Buyers data received:', Object.keys(buyersData).length);
             processCustomerData();
         });
 
         return () => {
             unsubscribeCustomerIds();
             unsubscribeOrders();
+            unsubscribeBuyers();
         };
     }, []);
 
