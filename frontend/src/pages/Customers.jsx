@@ -19,47 +19,49 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
-        const fetchCustomers = async () => {
-            try {
-                const res = await api.get('/orders');
-                const orders = res.data.orders || [];
+        // Set up Firebase real-time listener for orders to derive customers
+        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
-                const customerMap = new Map();
+        const unsubscribe = onValue(ordersRef, (snapshot) => {
+            const data = snapshot.val();
+            const orders = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
 
-                orders.forEach(order => {
-                    if (!customerMap.has(order.buyer_phone)) {
-                        customerMap.set(order.buyer_phone, {
-                            phone: order.buyer_phone,
-                            name: order.buyer_name || 'Unknown',
-                            totalOrders: 0,
-                            totalSpent: 0,
-                            lastOrderDate: order.created_at,
-                            orders: []
-                        });
-                    }
+            const customerMap = new Map();
 
-                    const customer = customerMap.get(order.buyer_phone);
-                    customer.totalOrders += 1;
-                    customer.totalSpent += (order.total_amount || order.amount || 0);
-                    if (new Date(order.created_at) > new Date(customer.lastOrderDate)) {
-                        customer.lastOrderDate = order.created_at;
-                    }
-                    customer.orders.push(order);
-                });
+            orders.forEach(order => {
+                if (!customerMap.has(order.buyer_phone)) {
+                    customerMap.set(order.buyer_phone, {
+                        phone: order.buyer_phone,
+                        name: order.buyer_name || 'Unknown',
+                        totalOrders: 0,
+                        totalSpent: 0,
+                        lastOrderDate: order.created_at,
+                        orders: []
+                    });
+                }
 
-                const customerList = Array.from(customerMap.values()).sort((a, b) =>
-                    new Date(b.lastOrderDate) - new Date(a.lastOrderDate)
-                );
+                const customer = customerMap.get(order.buyer_phone);
+                customer.totalOrders += 1;
+                customer.totalSpent += (order.total_amount || order.amount || 0);
+                if (new Date(order.created_at) > new Date(customer.lastOrderDate)) {
+                    customer.lastOrderDate = order.created_at;
+                }
+                customer.orders.push(order);
+            });
 
-                setCustomers(customerList);
-            } catch (err) {
-                console.error("Failed to fetch customers", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+            const customerList = Array.from(customerMap.values()).sort((a, b) =>
+                new Date(b.lastOrderDate) - new Date(a.lastOrderDate)
+            );
 
-        fetchCustomers();
+            setCustomers(customerList);
+            setLoading(false);
+        }, (error) => {
+            console.error("Firebase listener error:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, []);
 
     // Set up Firebase real-time listener for conversation
