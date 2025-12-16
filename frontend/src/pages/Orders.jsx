@@ -66,8 +66,10 @@ export default function Orders() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('All');
     const [paymentFilter, setPaymentFilter] = useState('All');
+    const [sortBy, setSortBy] = useState('newest'); // newest, oldest, highest, lowest
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [showPaymentFilterMenu, setShowPaymentFilterMenu] = useState(false);
+    const [showSortMenu, setShowSortMenu] = useState(false);
     const [upiId, setUpiId] = useState('');
     const [razorpayEnabled, setRazorpayEnabled] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -113,8 +115,38 @@ export default function Orders() {
     }, []);
 
     useEffect(() => {
-        filterOrders();
-    }, [statusFilter, paymentFilter, orders]);
+        filterAndSortOrders();
+    }, [statusFilter, paymentFilter, sortBy, orders]);
+
+    const filterAndSortOrders = () => {
+        let result = orders;
+
+        // Apply filters
+        if (statusFilter !== 'All') {
+            result = result.filter(order => order.order_status === statusFilter);
+        }
+        if (paymentFilter !== 'All') {
+            result = result.filter(order => order.payment_status === paymentFilter);
+        }
+
+        // Apply sorting
+        result = [...result].sort((a, b) => {
+            switch (sortBy) {
+                case 'newest':
+                    return new Date(b.created_at) - new Date(a.created_at);
+                case 'oldest':
+                    return new Date(a.created_at) - new Date(b.created_at);
+                case 'highest':
+                    return (b.total_amount || b.amount || 0) - (a.total_amount || a.amount || 0);
+                case 'lowest':
+                    return (a.total_amount || a.amount || 0) - (b.total_amount || b.amount || 0);
+                default:
+                    return 0;
+            }
+        });
+
+        setFilteredOrders(result);
+    };
 
     const fetchCompanyInfo = async () => {
         try {
@@ -329,6 +361,76 @@ Thank you! 🙏`;
                 </div>
 
                 <div className="flex gap-3 z-20">
+                    {/* Sort Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowSortMenu(!showSortMenu)}
+                            className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                            </svg>
+                            Sort: {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'highest' ? 'Highest Amount' : 'Lowest Amount'}
+                            <ChevronDown className="w-4 h-4" />
+                        </button>
+
+                        {showSortMenu && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)}></div>
+                                <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
+                                    <button
+                                        onClick={() => {
+                                            setSortBy('newest');
+                                            setShowSortMenu(false);
+                                        }}
+                                        className={cn(
+                                            "block w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors",
+                                            sortBy === 'newest' ? "text-indigo-400 bg-indigo-500/10" : "text-slate-300"
+                                        )}
+                                    >
+                                        Newest First
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSortBy('oldest');
+                                            setShowSortMenu(false);
+                                        }}
+                                        className={cn(
+                                            "block w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors",
+                                            sortBy === 'oldest' ? "text-indigo-400 bg-indigo-500/10" : "text-slate-300"
+                                        )}
+                                    >
+                                        Oldest First
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSortBy('highest');
+                                            setShowSortMenu(false);
+                                        }}
+                                        className={cn(
+                                            "block w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors",
+                                            sortBy === 'highest' ? "text-indigo-400 bg-indigo-500/10" : "text-slate-300"
+                                        )}
+                                    >
+                                        Highest Amount
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSortBy('lowest');
+                                            setShowSortMenu(false);
+                                        }}
+                                        className={cn(
+                                            "block w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors",
+                                            sortBy === 'lowest' ? "text-indigo-400 bg-indigo-500/10" : "text-slate-300"
+                                        )}
+                                    >
+                                        Lowest Amount
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
                     {/* Status Filter */}
                     <div className="relative">
                         <button
