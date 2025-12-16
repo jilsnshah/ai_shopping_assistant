@@ -58,18 +58,22 @@ export default function Customers() {
                 return new Date(b.lastOrderDate) - new Date(a.lastOrderDate);
             });
 
+            console.log('Processed customer list:', customerList);
             setCustomers(customerList);
             setLoading(false);
         };
 
         const unsubscribeCustomerIds = onValue(customerIdsRef, (snapshot) => {
             customerIds = snapshot.val() || [];
+            console.log('Customer IDs received:', customerIds);
             processCustomerData();
         });
 
         const unsubscribeOrders = onValue(ordersRef, (snapshot) => {
             const data = snapshot.val();
             ordersData = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
+            console.log('Orders received:', ordersData.length);
+            console.log('Sample order:', ordersData[0]);
             processCustomerData();
         });
 
