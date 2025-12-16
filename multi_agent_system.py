@@ -110,7 +110,6 @@ def create_shopping_agent(gemini_api_key):
         create_order,
         get_my_orders,
         update_my_name,
-        request_cancellation
     ]
     
     # System prompt for the agent
@@ -179,17 +178,6 @@ The system automatically manages buyer profiles. You will be notified if this is
    - Input: new_name (the customer's new name)
    - Example requests: "change my name", "update my name to X", "my name is actually Y"
 
-12. **request_cancellation** - Request cancellation for an order
-   - Use when: Customer wants to cancel an order
-   - Input: order_id (the order number to cancel)
-   - Process: This submits a cancellation request to the seller for review
-   - Important: 
-     * Customer must provide the order ID they want to cancel
-     * If they don't know their order ID, use get_my_orders first to show their orders
-     * After submitting the request, inform the customer that the seller has been notified
-     * Tell them: "Your cancellation request has been submitted. The seller will review it and get back to you soon."
-   - Example requests: "cancel order 5", "I want to cancel my order", "cancel my last order"
-
 🛒 SHOPPING CART WORKFLOW:
 New recommended flow for ordering:
 1. Customer browses products using browse_products
@@ -226,11 +214,9 @@ When a customer wants to order:
 - Orders are tracked with these statuses: "Received", "To Deliver", "Delivered"
 - Payment status: "Pending", "Verified"
 - When customer asks about orders, show all items in each order with order_status and payment_status
-- Orders are automatically saved to both seller database (sellers_data.json) and buyer database (buyers_data.json)
 
 💬 INTERACTION GUIDELINES:
 - Be warm, friendly, and conversational
-- Use emojis occasionally to be engaging (🍎🍊😊🛒)
 - Keep responses concise but complete
 - Ask ONE question at a time when collecting information
 - Always confirm order details before placing
@@ -248,6 +234,7 @@ When a customer wants to order:
 - Always present products by name, description, and price
 - When customer says a product name, find the matching product_id from the catalog internally
 - Never make up prices - always use tools to get accurate data
+- If user asks for cancellation of a order , show him company contact details and tell him to contact company directly 
 - Cart must have items before calling create_order
 - Always show cart contents before finalizing order
 - If a tool returns an error, explain it to the customer in a friendly way
