@@ -43,7 +43,7 @@ def set_current_user(phone_number):
     current_user["phone_number"] = phone_number
 
 
-def load_sample_data(seller_id="1"):
+def load_sample_data(seller_id="jilsnshah_at_gmail_dot_com"):
     """Load data from sellers database (Firebase or JSON fallback)"""
     if FIREBASE_ENABLED:
         return load_seller_data(seller_id)
@@ -94,7 +94,7 @@ if not FIREBASE_ENABLED:
             return False
 
 
-def get_company_info(seller_id="1"):
+def get_company_info(seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Get company name and description.
     
@@ -118,12 +118,12 @@ def get_company_info(seller_id="1"):
     }
 
 
-def get_product_catalog(seller_id="1"):
+def get_product_catalog(seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Get all products with their details including description and price.
     
     Args:
-        seller_id (str): Seller ID to load products for (default: "1")
+        seller_id (str): Seller ID to load products for (default: "jilsnshah_at_gmail_dot_com")
     
     Returns:
         list: List of products with id, title, description, and price
@@ -145,13 +145,13 @@ def get_product_catalog(seller_id="1"):
     return products
 
 
-def get_product_by_id(product_id: int, seller_id="1"):
+def get_product_by_id(product_id: int, seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Get specific product details by product ID.
     
     Args:
         product_id (int): The ID of the product
-        seller_id (str): Seller ID to load product from (default: "1")
+        seller_id (str): Seller ID to load product from (default: "jilsnshah_at_gmail_dot_com")
         
     Returns:
         dict: Product information or error message
@@ -282,7 +282,7 @@ def update_buyer_name(phone_number: str, new_name: str):
         }
 
 
-def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="1"):
+def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Add a product to buyer's cart or update quantity if already exists.
     
@@ -290,7 +290,7 @@ def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="1"
         phone_number (str): Buyer's phone number
         product_id (int): Product ID to add
         quantity (int): Quantity to add
-        seller_id (str): Seller ID to load product from (default: "1")
+        seller_id (str): Seller ID to load product from (default: "jilsnshah_at_gmail_dot_com")
         
     Returns:
         dict: Success status and cart info
@@ -459,7 +459,7 @@ def clear_cart(phone_number: str):
         return {"error": "Failed to clear cart"}
 
 
-def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float, seller_id="1"):
+def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float, seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Place an order from buyer's cart (multi-item order).
     
@@ -468,7 +468,7 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
         delivery_address (str): Delivery address for the order
         delivery_lat (float): Latitude of delivery location
         delivery_lng (float): Longitude of delivery location
-        seller_id (str): Seller ID to place order with (default: "1")
+        seller_id (str): Seller ID to place order with (default: "jilsnshah_at_gmail_dot_com")
         
     Returns:
         dict: Order confirmation with order details
@@ -564,14 +564,14 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
     }
 
 
-def calculate_order_total(product_id: int, quantity: int, seller_id="1"):
+def calculate_order_total(product_id: int, quantity: int, seller_id="jilsnshah_at_gmail_dot_com"):
     """
     Calculate the total cost for an order before placing it.
     
     Args:
         product_id (int): The ID of the product
         quantity (int): Number of items
-        seller_id (str): Seller ID to load product from (default: "1")
+        seller_id (str): Seller ID to load product from (default: "jilsnshah_at_gmail_dot_com")
         
     Returns:
         dict: Price breakdown including unit price, quantity, and total
@@ -664,7 +664,7 @@ def browse_products(query: str) -> str:
     Args:
         query: User's request to see products
     """
-    catalog = get_product_catalog(seller_id="1")
+    catalog = get_product_catalog(seller_id="jilsnshah_at_gmail_dot_com")
     return str(catalog)
 
 
@@ -707,7 +707,7 @@ def add_product_to_cart(product_id: str, quantity: str) -> str:
     """
     try:
         phone_number = current_user.get("phone_number")
-        result = add_to_cart(phone_number, int(product_id), int(quantity), seller_id="1")
+        result = add_to_cart(phone_number, int(product_id), int(quantity), seller_id="jilsnshah_at_gmail_dot_com")
         return str(result)
     except Exception as e:
         return f"Error: {str(e)}"
@@ -778,7 +778,7 @@ def create_order(delivery_address: str, delivery_latitude: str, delivery_longitu
         lat = float(delivery_latitude)
         lng = float(delivery_longitude)
         
-        result = place_order(phone_number, delivery_address, lat, lng, seller_id="1")
+        result = place_order(phone_number, delivery_address, lat, lng, seller_id="jilsnshah_at_gmail_dot_com")
         return str(result)
     except ValueError as e:
         return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."
