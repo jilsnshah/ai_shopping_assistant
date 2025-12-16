@@ -73,7 +73,13 @@ export default function Payments() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-white">Payments</h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-white">Payments</h1>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-emerald-400">Live</span>
+                    </div>
+                </div>
                 <p className="text-slate-400 mt-1">Track transaction history and settlements</p>
             </div>
 

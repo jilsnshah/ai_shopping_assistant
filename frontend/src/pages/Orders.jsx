@@ -356,7 +356,13 @@ Thank you! 🙏`;
             {/* Header and Filters can remain same */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Orders</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold text-white">Orders</h1>
+                        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                            <span className="text-xs font-medium text-emerald-400">Live</span>
+                        </div>
+                    </div>
                     <p className="text-slate-400 mt-1">Manage and track customer orders</p>
                 </div>
 
