@@ -4,6 +4,8 @@ import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { useToast } from '../hooks/useToast';
+import { database } from '../firebase/config';
+import { ref, onValue, off } from 'firebase/database';
 
 export default function Customers() {
     const [customers, setCustomers] = useState([]);
@@ -62,41 +64,41 @@ export default function Customers() {
 
     // Set up Firebase real-time listener for conversation
     useEffect(() => {
-        if (selectedCustomer && activeTab === 'conversation') {
-            // Import Firebase
-            import('../firebase/config').then(({ database }) => {
-                const { ref, onValue, off } = require('firebase/database');
+        if (!selectedCustomer || activeTab !== 'conversation') return;
 
-                // Create reference to conversation path
-                const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
-                const buyerPhoneSafe = selectedCustomer.phone.replace(/[.#$/\[\]]/g, '_');
-                const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);
+        setLoadingConversation(true);
 
-                // Set up real-time listener
-                const unsubscribe = onValue(conversationRef, (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        // Convert Firebase object to array and sort by timestamp
-                        const messages = Object.values(data)
-                            .sort((a, b) => a.timestamp - b.timestamp)
-                            .map(msg => ({
-                                role: msg.role,
-                                content: msg.content,
-                                timestamp: msg.timestamp
-                            }));
-                        setConversation(messages);
-                    } else {
-                        setConversation([]);
-                    }
-                    setLoadingConversation(false);
-                });
+        // Create reference to conversation path
+        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const buyerPhoneSafe = selectedCustomer.phone.replace(/[.#$/\[\]]/g, '_');
+        const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);
 
-                // Cleanup listener on unmount or when tab changes
-                return () => {
-                    off(conversationRef);
-                };
-            });
-        }
+        // Set up real-time listener
+        const unsubscribe = onValue(conversationRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert Firebase object to array and sort by timestamp
+                const messages = Object.values(data)
+                    .sort((a, b) => a.timestamp - b.timestamp)
+                    .map(msg => ({
+                        role: msg.role,
+                        content: msg.content,
+                        timestamp: msg.timestamp
+                    }));
+                setConversation(messages);
+            } else {
+                setConversation([]);
+            }
+            setLoadingConversation(false);
+        }, (error) => {
+            console.error("Firebase listener error:", error);
+            setLoadingConversation(false);
+        });
+
+        // Cleanup listener on unmount or when dependencies change
+        return () => {
+            unsubscribe();
+        };
     }, [selectedCustomer, activeTab]);
 
     // Auto-scroll to bottom when conversation updates

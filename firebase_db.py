@@ -897,6 +897,60 @@ def save_sellers_data_to_json(sellers_data):
         return False
 
 
+# ==================== MESSAGE DEDUPLICATION ====================
+
+def is_message_processed(msg_id):
+    """
+    Check if a WhatsApp message ID has already been processed
+    
+    Args:
+        msg_id (str): WhatsApp message ID
+        
+    Returns:
+        bool: True if message was already processed, False otherwise
+    """
+    try:
+        initialize_firebase()
+        # Sanitize message ID to make it Firebase-compatible
+        # Replace special characters that Firebase doesn't allow: . $ # [ ] /
+        safe_msg_id = msg_id.replace('.', '_').replace('$', '_').replace('#', '_').replace('[', '_').replace(']', '_').replace('/', '_')
+        msg_ref = db.reference(f'processed_msgs/{safe_msg_id}')
+        value = msg_ref.get()
+        
+        if value is True:
+            print(f"⚠️ Message {msg_id} already processed - skipping (deduplication)")
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Error checking if message is processed: {e}")
+        # If there's an error checking, assume it's not processed to avoid missing messages
+        return False
+
+
+def mark_message_as_processed(msg_id):
+    """
+    Mark a WhatsApp message ID as processed
+    
+    Args:
+        msg_id (str): WhatsApp message ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        # Sanitize message ID to make it Firebase-compatible
+        # Replace special characters that Firebase doesn't allow: . $ # [ ] /
+        safe_msg_id = msg_id.replace('.', '_').replace('$', '_').replace('#', '_').replace('[', '_').replace(']', '_').replace('/', '_')
+        msg_ref = db.reference(f'processed_msgs/{safe_msg_id}')
+        msg_ref.set(True)
+        print(f"✅ Message {msg_id} marked as processed")
+        return True
+    except Exception as e:
+        print(f"❌ Error marking message as processed: {e}")
+        return False
+
+
 # ==================== MIGRATION UTILITIES ====================
 
 def migrate_json_to_firebase():

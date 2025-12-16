@@ -442,6 +442,20 @@ def webhook_callback():
                     if "messages" in value:
                         messages = value.get("messages", [])
                         for message in messages:
+                            # Get WhatsApp message ID for deduplication
+                            msg_id = message.get("id")
+                            
+                            # Import deduplication functions
+                            from firebase_db import is_message_processed, mark_message_as_processed
+                            
+                            # Check if message was already processed
+                            if is_message_processed(msg_id):
+                                print(f"⏭️ Deduplication: Skipping already processed message {msg_id}")
+                                continue
+                            
+                            # Mark message as processed before processing to avoid race conditions
+                            mark_message_as_processed(msg_id)
+                            
                             from_number = message.get("from")
                             message_type = message.get("type")
                             if message_type == "text":
@@ -462,6 +476,7 @@ def webhook_callback():
     except Exception as e:
         print(f"❌ Error in webhook callback: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
 @app.route('/health', methods=['GET'])
