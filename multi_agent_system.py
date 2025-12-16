@@ -8,6 +8,60 @@ load_dotenv()
 from langchain.agents import create_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from datetime import datetime
+import google.generativeai as genai
+import base64
+import os
+
+
+# ==================== IMAGE DESCRIPTION ====================
+def describe_image(image_bytes: bytes, gemini_api_key: str = None) -> str:
+    """
+    Analyze an image and return a detailed description using Gemini Vision.
+    
+    Args:
+        image_bytes: Raw bytes of the image
+        gemini_api_key: Optional API key (uses environment variable if not provided)
+    
+    Returns:
+        str: Detailed description of the image
+    """
+    try:
+        # Configure Gemini
+        api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
+        genai.configure(api_key=api_key)
+        
+        # Use Gemini 2.5 Flash for vision
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # Create image part from bytes
+        image_part = {
+            "mime_type": "image/jpeg",
+            "data": base64.b64encode(image_bytes).decode('utf-8')
+        }
+        
+        # Prompt for detailed image description
+        prompt = """Analyze this image in detail and describe:
+1. What objects, products, or items are visible
+2. Colors, sizes, and quantities if applicable
+3. Any text visible in the image
+4. The context or setting of the image
+5. Anything relevant if this appears to be related to shopping (products, receipts, screenshots, etc.)
+
+Be concise but thorough. Focus on details that would be useful in a shopping context."""
+        
+        # Generate description
+        response = model.generate_content([prompt, image_part])
+        
+        description = response.text.strip()
+        print(f"📷 Image description generated: {description[:100]}...")
+        
+        return description
+        
+    except Exception as e:
+        print(f"❌ Error describing image: {e}")
+        import traceback
+        traceback.print_exc()
+        return "I received an image but couldn't analyze it clearly. Could you describe what you're looking for?"
 
 from tools import (
     set_current_user,

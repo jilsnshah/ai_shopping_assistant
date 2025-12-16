@@ -3,18 +3,21 @@ import { Search, Filter, ChevronDown, CheckCircle, Clock, Truck, XCircle, MoreHo
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { staggerContainer, tableRowVariants } from '../lib/motion';
 import { ToastContainer } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
+import { EmptyOrders } from '../components/EmptyStates';
+import { SkeletonTable } from '../components/Skeleton';
 
 const StatusBadge = ({ status }) => {
     const styles = {
-        'Received': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-        'Ready to Deliver': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-        'To Deliver': 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-        'Delivered': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-        'Cancelled': 'bg-red-500/10 text-red-500 border-red-500/20',
+        'Received': 'bg-gradient-to-r from-yellow-500/20 to-amber-500/10 text-yellow-400 border-yellow-500/30 shadow-[0_0_10px_-3px_rgba(234,179,8,0.3)]',
+        'Ready to Deliver': 'bg-gradient-to-r from-blue-500/20 to-cyan-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_10px_-3px_rgba(59,130,246,0.3)]',
+        'To Deliver': 'bg-gradient-to-r from-indigo-500/20 to-purple-500/10 text-indigo-400 border-indigo-500/30 shadow-[0_0_10px_-3px_rgba(99,102,241,0.3)]',
+        'Delivered': 'bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_-3px_rgba(16,185,129,0.3)]',
+        'Cancelled': 'bg-gradient-to-r from-red-500/20 to-rose-500/10 text-red-400 border-red-500/30 shadow-[0_0_10px_-3px_rgba(239,68,68,0.3)]',
     };
 
     const icons = {
@@ -28,8 +31,8 @@ const StatusBadge = ({ status }) => {
     const Icon = icons[status] || Clock;
 
     return (
-        <span className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border", styles[status] || styles['Pending'])}>
-            <Icon className="w-3 h-3" />
+        <span className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-sm transition-all hover:scale-105", styles[status] || styles['Received'])}>
+            <Icon className="w-3.5 h-3.5" />
             {status}
         </span>
     );
@@ -37,10 +40,10 @@ const StatusBadge = ({ status }) => {
 
 const PaymentBadge = ({ status }) => {
     const styles = {
-        'Pending': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-        'Requested': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-        'Completed': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-        'Verified': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+        'Pending': 'bg-gradient-to-r from-yellow-500/20 to-amber-500/10 text-yellow-400 border-yellow-500/30',
+        'Requested': 'bg-gradient-to-r from-blue-500/20 to-cyan-500/10 text-blue-400 border-blue-500/30',
+        'Completed': 'bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/30',
+        'Verified': 'bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/30',
     };
 
     const icons = {
@@ -53,8 +56,8 @@ const PaymentBadge = ({ status }) => {
     const Icon = icons[status] || Clock;
 
     return (
-        <span className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border", styles[status] || styles['Pending'])}>
-            <Icon className="w-3 h-3" />
+        <span className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-sm transition-all hover:scale-105", styles[status] || styles['Pending'])}>
+            <Icon className="w-3.5 h-3.5" />
             {status}
         </span>
     );
@@ -369,16 +372,23 @@ Thank you! 🙏`;
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             {/* Header and Filters can remain same */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="page-header"
+                >
                     <div className="flex items-center gap-3">
-                        <h1 className="text-3xl font-bold text-white">Orders</h1>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Orders</h1>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                            <div className="relative w-2 h-2">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                            </div>
                             <span className="text-xs font-medium text-emerald-400">Live</span>
                         </div>
                     </div>
                     <p className="text-slate-400 mt-1">Manage and track customer orders</p>
-                </div>
+                </motion.div>
 
                 <div className="flex gap-3 z-20">
                     {/* Sort Dropdown */}
@@ -553,18 +563,23 @@ Thank you! 🙏`;
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-card rounded-2xl overflow-hidden"
+            >
                 <table className="w-full text-left">
                     <thead>
-                        <tr className="border-b border-slate-800 text-slate-400 text-sm">
-                            <th className="px-6 py-4 font-medium">Order ID</th>
-                            <th className="px-6 py-4 font-medium">Customer</th>
-                            <th className="px-6 py-4 font-medium">Items</th>
-                            <th className="px-6 py-4 font-medium">Total</th>
-                            <th className="px-6 py-4 font-medium">Payment</th>
-                            <th className="px-6 py-4 font-medium">Status</th>
-                            <th className="px-6 py-4 font-medium">Date</th>
-                            <th className="px-6 py-4 font-medium text-right">Actions</th>
+                        <tr className="border-b border-slate-800/50 bg-slate-900/50">
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Order ID</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Customer</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Items</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Total</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Payment</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Status</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Date</th>
+                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
@@ -572,13 +587,18 @@ Thank you! 🙏`;
                             <tr><td colSpan="8" className="p-8 text-center text-slate-500">Loading...</td></tr>
                         ) : filteredOrders.length === 0 ? (
                             <tr><td colSpan="8" className="p-8 text-center text-slate-500">No orders found.</td></tr>
-                        ) : filteredOrders.map((order) => (
-                            <tr
+                        ) : filteredOrders.map((order, index) => (
+                            <motion.tr
                                 key={order.order_id}
-                                className="group hover:bg-slate-800/30 transition-colors cursor-pointer"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.02 }}
+                                className="group table-row-premium cursor-pointer border-b border-slate-800/30 last:border-0"
                                 onClick={() => setSelectedOrder(order)}
                             >
-                                <td className="px-6 py-4 font-mono text-indigo-400">#{order.order_id}</td>
+                                <td className="px-6 py-4">
+                                    <span className="font-mono font-semibold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">#{order.order_id}</span>
+                                </td>
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-white">{order.buyer_phone}</div>
                                 </td>
@@ -655,11 +675,11 @@ Thank you! 🙏`;
                                         </div>
                                     </div>
                                 </td>
-                            </tr>
+                            </motion.tr>
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </motion.div>
 
             {/* Message Preview Modal */}
             <AnimatePresence>

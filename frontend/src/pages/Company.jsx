@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Building2, MapPin, Phone, Mail, CreditCard } from 'lucide-react';
+import { motion } from 'framer-motion';
 import api from '../api/axios';
 import { ToastContainer } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -69,17 +70,31 @@ export default function Company() {
         </div>
     );
 
-    if (loading) return <div className="text-white">Loading...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center h-64">
+            <div className="w-10 h-10 border-4 border-indigo-500/30 rounded-full animate-spin border-t-indigo-500" />
+        </div>
+    );
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
-            <div>
-                <h1 className="text-3xl font-bold text-white">Company Profile</h1>
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="page-header"
+            >
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Company Profile</h1>
                 <p className="text-slate-400 mt-1">Manage your business details and payment info</p>
-            </div>
+            </motion.div>
 
-            <form onSubmit={handleSubmit} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 space-y-8">
+            <motion.form
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                onSubmit={handleSubmit}
+                className="glass-card rounded-2xl p-8 space-y-8"
+            >
                 {/* Basic Info */}
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Basic Information</h2>
@@ -130,10 +145,12 @@ export default function Company() {
                 </div>
 
                 <div className="flex justify-end pt-4">
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
                         type="submit"
                         disabled={saving}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                        className="btn-premium flex items-center gap-2 text-white disabled:opacity-50"
                     >
                         {saving ? (
                             'Saving...'
@@ -143,9 +160,9 @@ export default function Company() {
                                 Save Changes
                             </>
                         )}
-                    </button>
+                    </motion.button>
                 </div>
-            </form>
+            </motion.form>
         </div>
     );
 }

@@ -7,10 +7,11 @@ Handles all database operations for buyers, sellers, and agent memory
 from dotenv import load_dotenv
 load_dotenv()
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, db, storage
 import json
 import os
 from datetime import datetime
+import uuid
 
 def sanitize_email_for_firebase(email):
     """
@@ -63,11 +64,57 @@ def initialize_firebase():
         database_url = os.environ.get('FIREBASE_DATABASE_URL')
     
     firebase_admin.initialize_app(cred, {
-        'databaseURL': database_url
+        'databaseURL': database_url,
+        'storageBucket': 'ai-shopping-assistant-jils.appspot.com'
     })
     
     _firebase_initialized = True
-    print(f"Firebase initialized successfully with database: {database_url}")
+    print(f"Firebase initialized with database: {database_url}")
+    print(f"Firebase Storage bucket: ai-shopping-assistant-jils.firebasestorage.app")
+
+
+# ==================== FIREBASE STORAGE ====================
+
+def upload_product_image(file_bytes, filename, content_type='image/jpeg'):
+    """
+    Upload product image to Firebase Storage and return public URL
+    
+    Args:
+        file_bytes: Image file as bytes
+        filename: Original filename
+        content_type: MIME type of the image
+    
+    Returns:
+        dict: {'success': bool, 'url': str, 'error': str}
+    """
+    try:
+        initialize_firebase()
+        bucket = storage.bucket()
+        
+        # Generate unique filename
+        file_ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'jpg'
+        unique_filename = f"products/{uuid.uuid4()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_ext}"
+        
+        # Upload file
+        blob = bucket.blob(unique_filename)
+        blob.upload_from_string(file_bytes, content_type=content_type)
+        
+        # Make publicly accessible
+        blob.make_public()
+        
+        return {
+            'success': True,
+            'url': blob.public_url,
+            'filename': unique_filename
+        }
+    
+    except Exception as e:
+        print(f"Error uploading image: {e}")
+        return {
+            'success': False,
+            'url': None,
+            'error': str(e)
+        }
 
 
 # ==================== BUYERS DATA ====================

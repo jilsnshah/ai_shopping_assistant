@@ -21,7 +21,51 @@ from langgraph.checkpoint.memory import InMemorySaver
 from typing import Any
 
 # Import multi-agent system
-from multi_agent_system import get_orchestrator
+from multi_agent_system import get_orchestrator, describe_image
+
+
+def download_whatsapp_media(media_id: str, access_token: str) -> bytes:
+    """
+    Download media from WhatsApp servers using media_id.
+    
+    Args:
+        media_id: The WhatsApp media ID from the incoming message
+        access_token: WhatsApp API access token
+    
+    Returns:
+        bytes: Raw bytes of the media file
+    """
+    try:
+        # Step 1: Get the media URL
+        media_url_endpoint = f"{WHATSAPP_API_URL}/{media_id}"
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+        
+        print(f"📥 Fetching media URL for ID: {media_id}")
+        response = requests.get(media_url_endpoint, headers=headers)
+        response.raise_for_status()
+        
+        media_data = response.json()
+        download_url = media_data.get("url")
+        
+        if not download_url:
+            print(f"❌ No download URL in response: {media_data}")
+            return None
+        
+        # Step 2: Download the actual media file
+        print(f"📥 Downloading media from: {download_url[:50]}...")
+        media_response = requests.get(download_url, headers=headers)
+        media_response.raise_for_status()
+        
+        print(f"✅ Media downloaded successfully: {len(media_response.content)} bytes")
+        return media_response.content
+        
+    except Exception as e:
+        print(f"❌ Error downloading media: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -518,6 +562,40 @@ def webhook_callback():
                                 print(f"📍 Location received from {from_number}: {location_text}")
                                 agent_response = process_whatsapp_message(from_number, location_text, seller_id)
                                 send_whatsapp_message(from_number, agent_response, seller_id, whatsapp_creds)
+                            elif message_type == "image":
+                                # Handle image messages
+                                image_data = message.get("image", {})
+                                media_id = image_data.get("id")
+                                caption = image_data.get("caption", "")
+                                
+                                print(f"📷 Image received from {from_number}, media_id: {media_id}")
+                                
+                                if media_id:
+                                    # Get access token from credentials
+                                    access_token = whatsapp_creds.get('access_token', WHATSAPP_ACCESS_TOKEN)
+                                    
+                                    # Download the image
+                                    image_bytes = download_whatsapp_media(media_id, access_token)
+                                    
+                                    if image_bytes:
+                                        # Describe the image using Gemini Vision
+                                        image_description = describe_image(image_bytes)
+                                        
+                                        # Format as user message with image context
+                                        if caption:
+                                            image_text = f"User sent an Image : {image_description}\n\nUser's caption: {caption}"
+                                        else:
+                                            image_text = f"User sent an Image : {image_description}"
+                                        
+                                        print(f"📷 Image message formatted: {image_text[:100]}...")
+                                        
+                                        # Process through agent
+                                        agent_response = process_whatsapp_message(from_number, image_text, seller_id)
+                                        send_whatsapp_message(from_number, agent_response, seller_id, whatsapp_creds)
+                                    else:
+                                        send_whatsapp_message(from_number, "I received your image but couldn't process it. Could you describe what you're looking for?", seller_id, whatsapp_creds)
+                                else:
+                                    send_whatsapp_message(from_number, "I received your image but couldn't access it. Please try sending it again.", seller_id, whatsapp_creds)
         
         return jsonify({"status": "success"}), 200
         

@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from whatsapp_msg import send_whatsapp_message, send_whatsapp_media
-from firebase_db import load_seller_data, save_seller_data, initialize_firebase, save_razorpay_credentials, get_razorpay_credentials, get_whatsapp_credentials
+from firebase_db import load_seller_data, save_seller_data, initialize_firebase, save_razorpay_credentials, get_razorpay_credentials, get_whatsapp_credentials, upload_product_image
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from razorpay_helper import create_payment_link, handle_payment_success, verify_webhook_signature
@@ -487,6 +487,50 @@ def update_delete_product(product_id):
             return jsonify({'message': 'Product deleted successfully'}), 200
             
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    """Upload image to Firebase Storage and return URL"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+        
+        # Read file bytes
+        file_bytes = file.read()
+        
+        # Upload to Firebase Storage
+        result = upload_product_image(file_bytes, file.filename, file.content_type)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'url': result['url']
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Upload failed')
+            }), 500
+            
+    except Exception as e:
+        print(f"Error in upload_image: {e}")
         return jsonify({'error': str(e)}), 500
 
 

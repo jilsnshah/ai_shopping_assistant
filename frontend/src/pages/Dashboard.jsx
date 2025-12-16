@@ -1,35 +1,76 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, MessageSquare, Power, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, MessageSquare, Power, X, Sparkles, Activity, Zap } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
+import { staggerContainer, staggerItem, fadeInUp } from '../lib/motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
+import { Sparkline } from '../components/Sparkline';
+import { SkeletonStatCard, SkeletonChart } from '../components/Skeleton';
 
-const StatCard = ({ title, value, change, icon: Icon, trend }) => (
+const StatCard = ({ title, value, change, icon: Icon, trend, gradient, delay = 0, sparklineData = [] }) => (
     <motion.div
-        whileHover={{ y: -5 }}
-        className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-6 rounded-2xl relative overflow-hidden group"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: delay * 0.1, duration: 0.5 }}
+        whileHover={{ y: -5, scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="stat-card group noise-overlay"
     >
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Icon className="w-24 h-24 -rotate-12" />
+        {/* Gradient overlay on hover */}
+        <div className={cn(
+            "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl",
+            gradient
+        )} />
+
+        {/* Background icon */}
+        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Icon className="w-32 h-32 -rotate-12" />
         </div>
-        <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-indigo-500/10 rounded-xl">
-                <Icon className="w-6 h-6 text-indigo-400" />
-            </div>
-            {change && (
-                <div className={cn("flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-lg",
-                    trend === 'up' ? "text-emerald-400 bg-emerald-500/10" : "text-red-400 bg-red-500/10"
+
+        <div className="relative z-10">
+            <div className="flex justify-between items-start mb-4">
+                <div className={cn(
+                    "p-3 rounded-xl transition-all duration-300",
+                    "bg-gradient-to-br from-indigo-500/20 to-purple-500/10 group-hover:from-indigo-500/30 group-hover:to-purple-500/20"
                 )}>
-                    {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {change}
+                    <Icon className="w-6 h-6 text-indigo-400" />
                 </div>
-            )}
+                <div className="flex items-center gap-2">
+                    {/* Mini Sparkline */}
+                    {sparklineData.length > 0 && (
+                        <Sparkline
+                            data={sparklineData}
+                            width={50}
+                            height={20}
+                            color={trend === 'up' ? '#10b981' : trend === 'down' ? '#ef4444' : '#6366f1'}
+                        />
+                    )}
+                    {change && (
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: delay * 0.1 + 0.3 }}
+                            className={cn(
+                                "flex items-center gap-1 text-sm font-medium px-2.5 py-1 rounded-lg",
+                                trend === 'up'
+                                    ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                                    : "text-red-400 bg-red-500/10 border border-red-500/20"
+                            )}
+                        >
+                            {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            {change}
+                        </motion.div>
+                    )}
+                </div>
+            </div>
+            <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
+            <p className="text-3xl font-bold text-white mt-1 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                {value}
+            </p>
         </div>
-        <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
-        <p className="text-3xl font-bold text-white mt-1">{value}</p>
     </motion.div>
 );
 
@@ -111,7 +152,6 @@ export default function Dashboard() {
     };
 
     useEffect(() => {
-        // Set up Firebase real-time listeners for seller data and customers
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
         const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
@@ -140,7 +180,6 @@ export default function Dashboard() {
 
         const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
             const data = snapshot.val();
-            // Handle both object format (new) and array format (old)
             if (data) {
                 if (Array.isArray(data)) {
                     customerIds = data;
@@ -153,19 +192,16 @@ export default function Dashboard() {
             processData();
         });
 
-
         return () => {
             unsubscribeSeller();
             unsubscribeCustomers();
         };
     }, []);
 
-
     const processDashboardData = (data, customerIds) => {
         const { orders, products } = data;
         const now = new Date();
 
-        // Helper to get orders for a specific time range
         const getOrdersBetween = (startDate, endDate) => {
             return orders.filter(o => {
                 const date = new Date(o.created_at);
@@ -173,7 +209,6 @@ export default function Dashboard() {
             });
         };
 
-        // Monthly Ranges
         const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -181,26 +216,21 @@ export default function Dashboard() {
         const currentMonthOrders = getOrdersBetween(startOfCurrentMonth, now);
         const lastMonthOrders = getOrdersBetween(startOfLastMonth, endOfLastMonth);
 
-        // Calculate Revenue Stats
         const calculateRevenue = (ordList) => ordList.reduce((acc, o) => acc + (o.total_amount || 0), 0);
         const currentRevenue = calculateRevenue(currentMonthOrders);
         const lastRevenue = calculateRevenue(lastMonthOrders);
         const revenueChange = calculatePercentageChange(currentRevenue, lastRevenue);
 
-        // Calculate Order Stats
         const currentOrdersCount = currentMonthOrders.length;
         const lastOrdersCount = lastMonthOrders.length;
         const ordersChange = calculatePercentageChange(currentOrdersCount, lastOrdersCount);
 
-        // Calculate Customer Stats from customers array
         const totalCustomers = customerIds.length;
-        // For monthly changes, still use unique phones from orders
         const getUniqueCustomers = (ordList) => new Set(ordList.map(o => o.buyer_phone)).size;
         const currentCustomers = getUniqueCustomers(currentMonthOrders);
         const lastCustomers = getUniqueCustomers(lastMonthOrders);
         const customersChange = calculatePercentageChange(currentCustomers, lastCustomers);
 
-        // Overall Totals
         const totalRevenue = calculateRevenue(orders);
 
         setStats({
@@ -211,10 +241,9 @@ export default function Dashboard() {
             revenueChange,
             ordersChange,
             customersChange,
-            productsChange: 0 // Can implement if products have created_at
+            productsChange: 0
         });
 
-        // 2. Process Chart Data (Last 7 Days)
         const last7Days = [];
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
@@ -235,7 +264,6 @@ export default function Dashboard() {
         }
         setChartData(last7Days);
 
-        // 3. Process Recent Activity
         const sortedOrders = [...orders].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setRecentActivity(sortedOrders.slice(0, 5));
     };
@@ -267,20 +295,34 @@ export default function Dashboard() {
         }).format(amount);
     };
 
-    if (loading) return <div className="text-white">Loading...</div>;
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="relative">
+                    <div className="w-12 h-12 border-4 border-indigo-500/30 rounded-full animate-spin border-t-indigo-500" />
+                    <Sparkles className="w-5 h-5 text-indigo-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
             {/* Credentials Form Modal */}
             {showCredentialsForm && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md mx-4"
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="modal-premium p-6 w-full max-w-md mx-4"
                     >
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-semibold text-white">Activate AI Assistant</h3>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl">
+                                    <Zap className="w-5 h-5 text-indigo-400" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-white">Activate AI Assistant</h3>
+                            </div>
                             <button
                                 onClick={() => setShowCredentialsForm(false)}
                                 className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
@@ -295,7 +337,7 @@ export default function Dashboard() {
                                     type="text"
                                     value={whatsappCreds.phone_number_id}
                                     onChange={(e) => setWhatsappCreds({ ...whatsappCreds, phone_number_id: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="input-premium"
                                     placeholder="Enter WhatsApp Phone Number ID"
                                 />
                             </div>
@@ -305,7 +347,7 @@ export default function Dashboard() {
                                     type="text"
                                     value={whatsappCreds.business_account_id}
                                     onChange={(e) => setWhatsappCreds({ ...whatsappCreds, business_account_id: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="input-premium"
                                     placeholder="Enter Business Account ID"
                                 />
                             </div>
@@ -315,7 +357,7 @@ export default function Dashboard() {
                                     type="password"
                                     value={whatsappCreds.access_token}
                                     onChange={(e) => setWhatsappCreds({ ...whatsappCreds, access_token: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="input-premium"
                                     placeholder="Enter Access Token"
                                 />
                             </div>
@@ -325,14 +367,14 @@ export default function Dashboard() {
                                     type="text"
                                     value={whatsappCreds.verify_token}
                                     onChange={(e) => setWhatsappCreds({ ...whatsappCreds, verify_token: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="input-premium"
                                     placeholder="Enter Verify Token"
                                 />
                             </div>
                             <button
                                 onClick={handleActivateWhatsApp}
                                 disabled={aiLoading}
-                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full btn-premium text-white font-medium py-3 disabled:opacity-50"
                             >
                                 {aiLoading ? 'Activating...' : 'Activate AI Assistant'}
                             </button>
@@ -341,47 +383,70 @@ export default function Dashboard() {
                 </div>
             )}
 
-            <div className="flex justify-between items-center">
-                <div>
+            {/* Page Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-between items-center"
+            >
+                <div className="page-header">
                     <div className="flex items-center gap-3">
-                        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <h1 className="text-3xl font-bold">Dashboard</h1>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                            </div>
                             <span className="text-xs font-medium text-emerald-400">Live</span>
                         </div>
                     </div>
                     <p className="text-slate-400 mt-1">Overview of your store performance</p>
                 </div>
                 <div className="flex gap-3">
-                    <select className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select className="bg-slate-900/80 border border-slate-800 text-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all">
                         <option>Current Month</option>
                     </select>
                 </div>
-            </div>
+            </motion.div>
 
             {/* AI Assistant Card */}
             <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
                 whileHover={{ y: -2 }}
                 className={cn(
-                    "p-6 rounded-2xl border backdrop-blur-xl transition-all",
+                    "p-6 rounded-2xl border backdrop-blur-xl transition-all relative overflow-hidden group",
                     aiAssistantActive
-                        ? "bg-emerald-900/20 border-emerald-500/30"
-                        : "bg-slate-900/50 border-slate-800"
+                        ? "bg-gradient-to-r from-emerald-900/30 to-emerald-900/10 border-emerald-500/30"
+                        : "bg-slate-900/50 border-slate-800 hover:border-indigo-500/30"
                 )}
             >
-                <div className="flex items-center justify-between">
+                {/* Animated background */}
+                {aiAssistantActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 animate-pulse" />
+                )}
+
+                <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-4">
                         <div className={cn(
-                            "p-3 rounded-xl",
-                            aiAssistantActive ? "bg-emerald-500/20" : "bg-slate-800"
+                            "p-3 rounded-xl relative",
+                            aiAssistantActive
+                                ? "bg-gradient-to-br from-emerald-500/20 to-cyan-500/20"
+                                : "bg-slate-800"
                         )}>
                             <MessageSquare className={cn(
                                 "w-6 h-6",
                                 aiAssistantActive ? "text-emerald-400" : "text-slate-400"
                             )} />
+                            {aiAssistantActive && (
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
+                            )}
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-white">WhatsApp AI Assistant</h3>
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                WhatsApp AI Assistant
+                                {aiAssistantActive && <Sparkles className="w-4 h-4 text-emerald-400" />}
+                            </h3>
                             <p className="text-sm text-slate-400">
                                 {aiAssistantActive
                                     ? "Active - Responding to customer messages automatically"
@@ -393,10 +458,10 @@ export default function Dashboard() {
                         onClick={aiAssistantActive ? handleDeactivateWhatsApp : () => setShowCredentialsForm(true)}
                         disabled={aiLoading}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50",
+                            "flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50",
                             aiAssistantActive
                                 ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
-                                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                                : "btn-premium text-white"
                         )}
                     >
                         <Power className="w-4 h-4" />
@@ -405,7 +470,7 @@ export default function Dashboard() {
                 </div>
             </motion.div>
 
-
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Total Revenue"
@@ -413,6 +478,8 @@ export default function Dashboard() {
                     change={`${stats.revenueChange >= 0 ? '+' : ''}${stats.revenueChange.toFixed(1)}%`}
                     trend={stats.revenueChange >= 0 ? 'up' : 'down'}
                     icon={DollarSign}
+                    gradient="bg-gradient-to-br from-emerald-500/10 to-transparent"
+                    delay={0}
                 />
                 <StatCard
                     title="Total Orders"
@@ -420,13 +487,17 @@ export default function Dashboard() {
                     change={`${stats.ordersChange >= 0 ? '+' : ''}${stats.ordersChange.toFixed(1)}%`}
                     trend={stats.ordersChange >= 0 ? 'up' : 'down'}
                     icon={ShoppingBag}
+                    gradient="bg-gradient-to-br from-indigo-500/10 to-transparent"
+                    delay={1}
                 />
                 <StatCard
                     title="Active Products"
                     value={stats.products}
                     change="0%"
                     trend="up"
-                    icon={Users}
+                    icon={TrendingUp}
+                    gradient="bg-gradient-to-br from-purple-500/10 to-transparent"
+                    delay={2}
                 />
                 <StatCard
                     title="Total Customers"
@@ -434,61 +505,111 @@ export default function Dashboard() {
                     change={`${stats.customersChange >= 0 ? '+' : ''}${stats.customersChange.toFixed(1)}%`}
                     trend={stats.customersChange >= 0 ? 'up' : 'down'}
                     icon={Users}
+                    gradient="bg-gradient-to-br from-cyan-500/10 to-transparent"
+                    delay={3}
                 />
             </div>
 
+            {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="lg:col-span-2 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6"
+                    transition={{ delay: 0.4 }}
+                    className="lg:col-span-2 glass-card rounded-2xl p-6"
                 >
-                    <h3 className="text-lg font-semibold text-white mb-6">Revenue Analytics (Last 7 Days)</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-semibold text-white">Revenue Analytics</h3>
+                            <p className="text-sm text-slate-500">Last 7 Days</p>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 rounded-lg">
+                            <Activity className="w-4 h-4 text-indigo-400" />
+                            <span className="text-xs text-indigo-400 font-medium">Live Data</span>
+                        </div>
+                    </div>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                                        <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.2} />
                                         <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                                <XAxis dataKey="name" stroke="#64748b" />
-                                <YAxis stroke="#64748b" />
+                                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+                                <YAxis stroke="#64748b" fontSize={12} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                        borderColor: 'rgba(99, 102, 241, 0.3)',
+                                        borderRadius: '12px',
+                                        backdropFilter: 'blur(10px)'
+                                    }}
                                     itemStyle={{ color: '#e2e8f0' }}
                                     formatter={(value) => formatCurrency(value)}
                                 />
-                                <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                                <Area
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke="#6366f1"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorRevenue)"
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </motion.div>
 
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6">
-                    <h3 className="text-lg font-semibold text-white mb-6">Recent Activity</h3>
-                    <div className="space-y-6">
+                {/* Recent Activity */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="glass-card rounded-2xl p-6"
+                >
+                    <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-indigo-400" />
+                        Recent Activity
+                    </h3>
+                    <div className="space-y-5">
                         {recentActivity.length === 0 ? (
-                            <p className="text-slate-500 text-sm">No recent activity</p>
+                            <p className="text-slate-500 text-sm text-center py-8">No recent activity</p>
                         ) : (
-                            recentActivity.map((order) => (
-                                <div key={order.order_id} className="flex gap-4">
-                                    <div className="w-2 h-2 mt-2 rounded-full bg-indigo-500 shrink-0"></div>
-                                    <div>
-                                        <p className="text-sm text-slate-300">
-                                            New order <span className="text-indigo-400">#{order.order_id}</span> received
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            {formatTimeAgo(order.created_at)} • {formatCurrency(order.total_amount || order.amount)}
-                                        </p>
+                            recentActivity.map((order, index) => (
+                                <motion.div
+                                    key={order.order_id}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.5 + index * 0.1 }}
+                                    className="flex gap-4 group"
+                                >
+                                    <div className="relative">
+                                        <div className="w-2.5 h-2.5 mt-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 shrink-0 group-hover:scale-125 transition-transform" />
+                                        {index < recentActivity.length - 1 && (
+                                            <div className="absolute top-4 left-1 w-0.5 h-full bg-gradient-to-b from-indigo-500/30 to-transparent" />
+                                        )}
                                     </div>
-                                </div>
+                                    <div className="flex-1 pb-4">
+                                        <p className="text-sm text-slate-300">
+                                            New order <span className="text-indigo-400 font-medium">#{order.order_id}</span> received
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs text-slate-500">{formatTimeAgo(order.created_at)}</span>
+                                            <span className="text-xs text-slate-600">•</span>
+                                            <span className="text-xs font-medium bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                                                {formatCurrency(order.total_amount || order.amount)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </motion.div>
                             ))
                         )}
                     </div>
-                </div>
+                </motion.div>
             </div>
         </div>
     );

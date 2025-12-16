@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Filter, MoreVertical, Trash2, Edit, X, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit, X, ChevronDown, Upload, Image } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
+import { staggerContainer, staggerItem, cardVariants } from '../lib/motion';
 import { ToastContainer } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { EmptyProducts } from '../components/EmptyStates';
+import { SkeletonProductCard } from '../components/Skeleton';
 
 export default function Products() {
     const [products, setProducts] = useState([]);
@@ -27,6 +30,9 @@ export default function Products() {
         required: true,
         options: ''
     });
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
     const { toasts, removeToast, success, error } = useToast();
 
     useEffect(() => {
@@ -67,6 +73,8 @@ export default function Products() {
             features: []
         });
         setNewFeature({ name: '', type: 'multiple_choice', required: true, options: '' });
+        setImageFile(null);
+        setImagePreview('');
         setIsModalOpen(true);
     };
 
@@ -82,7 +90,43 @@ export default function Products() {
             features: product.features || []
         });
         setNewFeature({ name: '', type: 'multiple_choice', required: true, options: '' });
+        setImageFile(null);
+        setImagePreview(product.image_url || ''); // Show existing image as preview
         setIsModalOpen(true);
+    };
+
+    const handleImageSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                error('Please select an image file');
+                return;
+            }
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                error('Image size should be less than 5MB');
+                return;
+            }
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
+
+    const uploadImageToStorage = async (file) => {
+        // Upload via backend to avoid CORS issues
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await api.post('/upload-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (response.data.success) {
+            return response.data.url;
+        } else {
+            throw new Error(response.data.error || 'Upload failed');
+        }
     };
 
     const addFeature = () => {
@@ -110,19 +154,39 @@ export default function Products() {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        setIsUploading(true);
+
         try {
+            let imageUrl = formData.image_url;
+
+            // Upload new image if one was selected
+            if (imageFile) {
+                imageUrl = await uploadImageToStorage(imageFile);
+            }
+
+            const productData = {
+                ...formData,
+                image_url: imageUrl
+            };
+
             if (editingProduct) {
-                await api.put(`/products/${editingProduct.id}`, formData);
-                setProducts(products.map(p => p.id === editingProduct.id ? { ...p, ...formData } : p));
+                await api.put(`/products/${editingProduct.id}`, productData);
+                setProducts(products.map(p => p.id === editingProduct.id ? { ...p, ...productData } : p));
+                success('Product updated successfully!');
             } else {
-                const res = await api.post('/products', formData);
+                const res = await api.post('/products', productData);
                 setProducts([...products, res.data.product]);
+                success('Product created successfully!');
             }
             setIsModalOpen(false);
-            fetchProducts(); // Refresh to be safe
+            setImageFile(null);
+            setImagePreview('');
+            fetchProducts();
         } catch (err) {
             console.error("Failed to save product", err);
             error("Failed to save product");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -135,92 +199,116 @@ export default function Products() {
         <div className="space-y-8">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">Products</h1>
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+            >
+                <div className="page-header">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Products</h1>
                     <p className="text-slate-400 mt-1">Manage your inventory and catalog</p>
                 </div>
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleAdd}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                    className="btn-premium flex items-center gap-2 text-white"
                 >
                     <Plus className="w-5 h-5" />
                     Add Product
-                </button>
-            </div>
+                </motion.button>
+            </motion.div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800 w-full md:w-auto">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col sm:flex-row gap-4 glass-card p-3 rounded-2xl w-full md:w-auto"
+            >
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
                         type="text"
                         placeholder="Search products..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-950 border-none rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:ring-2 focus:ring-indigo-500/50"
+                        className="w-full input-premium pl-11"
                     />
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">
+                <button className="flex items-center gap-2 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl transition-all">
                     <Filter className="w-4 h-4" />
                     Filters
                 </button>
-            </div>
+            </motion.div>
 
             {/* Grid */}
             {loading ? (
-                <div className="text-white">Loading products...</div>
+                <div className="flex items-center justify-center h-64">
+                    <div className="w-10 h-10 border-4 border-indigo-500/30 rounded-full animate-spin border-t-indigo-500" />
+                </div>
             ) : (
                 <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     <AnimatePresence>
-                        {filteredProducts.map((product) => (
+                        {filteredProducts.map((product, index) => (
                             <motion.div
                                 layout
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ delay: index * 0.05 }}
                                 key={product.id}
-                                className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden group hover:border-indigo-500/30 transition-all hover:shadow-2xl hover:shadow-indigo-500/10"
+                                className="glass-card rounded-2xl overflow-hidden group hover:shadow-glow transition-all duration-500"
                             >
                                 {/* Image Area */}
-                                <div className="h-48 bg-slate-800 relative overflow-hidden">
+                                <div className="h-48 bg-slate-800/50 relative overflow-hidden">
                                     {product.image_url ? (
-                                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-600 font-bold text-4xl">
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-600 font-bold text-5xl">
                                             {product.title.charAt(0)}
                                         </div>
                                     )}
-                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                        <button
+                                    {/* Gradient overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
+                                    {/* Action buttons */}
+                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-2">
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
                                             onClick={() => handleEdit(product)}
-                                            className="p-2 bg-slate-950/80 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                                            className="p-2.5 bg-slate-950/80 backdrop-blur-sm text-white rounded-xl hover:bg-indigo-600 transition-colors border border-slate-700/50"
                                             title="Edit"
                                         >
                                             <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
                                             onClick={() => handleDelete(product.id)}
-                                            className="p-2 bg-slate-950/80 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                            className="p-2.5 bg-slate-950/80 backdrop-blur-sm text-white rounded-xl hover:bg-red-600 transition-colors border border-slate-700/50"
                                             title="Delete"
                                         >
                                             <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        </motion.button>
                                     </div>
-                                    <div className="absolute top-2 left-2 bg-slate-950/80 px-2 py-1 rounded-lg text-xs font-bold text-white uppercase tracking-wider backdrop-blur-md">
+                                    {/* Category badge */}
+                                    <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-slate-700/50">
                                         {product.category || 'General'}
                                     </div>
                                 </div>
 
                                 {/* Content */}
                                 <div className="p-5">
-                                    <h3 className="font-semibold text-lg text-white mb-1 truncate">{product.title}</h3>
+                                    <h3 className="font-semibold text-lg text-white mb-1 truncate group-hover:text-indigo-200 transition-colors">{product.title}</h3>
                                     <p className="text-slate-400 text-sm line-clamp-2 mb-4 h-10">{product.description || 'No description available'}</p>
 
                                     <div className="flex items-center justify-between">
-                                        <span className="text-2xl font-bold text-indigo-400">₹{product.price}</span>
-                                        <div className={cn("text-xs font-medium px-2 py-1 rounded-full",
-                                            product.stock_quantity > 10 ? "text-emerald-400 bg-emerald-500/10" : "text-amber-400 bg-amber-500/10"
+                                        <span className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">₹{product.price}</span>
+                                        <div className={cn("text-xs font-semibold px-3 py-1.5 rounded-full border",
+                                            product.stock_quantity > 10
+                                                ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+                                                : "text-amber-400 bg-amber-500/10 border-amber-500/30"
                                         )}>
                                             {product.stock_quantity} in stock
                                         </div>
@@ -286,14 +374,37 @@ export default function Products() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-1">Image URL</label>
-                                <input
-                                    type="url"
-                                    value={formData.image_url}
-                                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                                    placeholder="https://..."
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500"
-                                />
+                                <label className="block text-sm font-medium text-slate-400 mb-1">Product Image</label>
+                                <div className="flex items-start gap-4">
+                                    {/* Image Preview */}
+                                    <div className="w-24 h-24 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center">
+                                        {imagePreview ? (
+                                            <img
+                                                src={imagePreview}
+                                                alt="Preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <Image className="w-8 h-8 text-slate-600" />
+                                        )}
+                                    </div>
+                                    {/* Upload Button */}
+                                    <div className="flex-1">
+                                        <label className="flex items-center gap-2 px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer hover:bg-slate-900 hover:border-indigo-500 transition-colors">
+                                            <Upload className="w-4 h-4 text-slate-400" />
+                                            <span className="text-sm text-slate-400">
+                                                {imageFile ? imageFile.name : 'Choose image...'}
+                                            </span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageSelect}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                        <p className="text-xs text-slate-500 mt-1">Max 5MB. JPG, PNG, WEBP supported.</p>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-400 mb-1">Description</label>
@@ -409,9 +520,22 @@ export default function Products() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
+                                    disabled={isUploading}
+                                    className={cn(
+                                        "px-6 py-2 text-white rounded-lg transition-colors font-medium flex items-center gap-2",
+                                        isUploading
+                                            ? "bg-indigo-600/50 cursor-not-allowed"
+                                            : "bg-indigo-600 hover:bg-indigo-700"
+                                    )}
                                 >
-                                    {editingProduct ? 'Save Changes' : 'Create Product'}
+                                    {isUploading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        editingProduct ? 'Save Changes' : 'Create Product'
+                                    )}
                                 </button>
                             </div>
                         </form>

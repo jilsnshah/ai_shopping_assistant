@@ -1,6 +1,7 @@
 // Firebase configuration for frontend
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: "AIzaSyCIGRztRPqBItjL2VGraTGlH2RLBEFZWgo",
@@ -17,3 +18,6 @@ const app = initializeApp(firebaseConfig);
 
 // Get database instance
 export const database = getDatabase(app);
+
+// Get storage instance
+export const storage = getStorage(app);
