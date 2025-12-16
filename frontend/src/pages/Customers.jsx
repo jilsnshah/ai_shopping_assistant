@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Phone, ShoppingBag, Calendar, X, Clock, CheckCircle, Truck, XCircle, MessageCircle, Send } from 'lucide-react';
+import { User, Phone, ShoppingBag, Calendar, X, Clock, CheckCircle, Truck, XCircle, MessageCircle, Send, RefreshCw } from 'lucide-react';
 import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -65,10 +65,10 @@ export default function Customers() {
         if (selectedCustomer && activeTab === 'conversation') {
             fetchConversation();
 
-            // Set up polling for real-time updates (every 3 seconds)
+            // Set up polling for real-time updates (every 10 seconds to reduce Firebase costs)
             const pollInterval = setInterval(() => {
                 fetchConversation();
-            }, 3000);
+            }, 10000); // Changed from 3000ms to 10000ms
 
             // Cleanup interval on unmount or when tab changes
             return () => clearInterval(pollInterval);
@@ -281,6 +281,21 @@ export default function Customers() {
                                     </div>
                                 ) : (
                                     <div className="flex flex-col h-[400px]">
+                                        {/* Messages Header with Refresh */}
+                                        <div className="flex items-center justify-between px-6 py-2 border-b border-slate-800/50">
+                                            <span className="text-xs text-slate-500">
+                                                Updates every 10 seconds
+                                            </span>
+                                            <button
+                                                onClick={() => fetchConversation()}
+                                                disabled={loadingConversation}
+                                                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+                                                title="Refresh conversation"
+                                            >
+                                                <RefreshCw className={cn("w-4 h-4", loadingConversation && "animate-spin")} />
+                                            </button>
+                                        </div>
+
                                         {/* Messages */}
                                         <div id="messages-container" className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-950/30">
                                             {loadingConversation ? (
