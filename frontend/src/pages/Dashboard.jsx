@@ -71,7 +71,7 @@ export default function Dashboard() {
         return () => unsubscribe();
     }, []);
 
-    const processDashboardData = (data) => {
+    const processDashboardData = (data, customerIds) => {
         const { orders, products } = data;
         const now = new Date();
 
@@ -102,7 +102,9 @@ export default function Dashboard() {
         const lastOrdersCount = lastMonthOrders.length;
         const ordersChange = calculatePercentageChange(currentOrdersCount, lastOrdersCount);
 
-        // Calculate Customer Stats (Unique Phones)
+        // Calculate Customer Stats from customers array
+        const totalCustomers = customerIds.length;
+        // For monthly changes, still use unique phones from orders
         const getUniqueCustomers = (ordList) => new Set(ordList.map(o => o.buyer_phone)).size;
         const currentCustomers = getUniqueCustomers(currentMonthOrders);
         const lastCustomers = getUniqueCustomers(lastMonthOrders);
@@ -110,7 +112,6 @@ export default function Dashboard() {
 
         // Overall Totals
         const totalRevenue = calculateRevenue(orders);
-        const totalCustomers = getUniqueCustomers(orders);
 
         setStats({
             products: products.length,
