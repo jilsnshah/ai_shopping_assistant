@@ -19,36 +19,51 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
-        // Set up Firebase real-time listeners for customers and orders
+        // Set up Firebase real-time listeners for customer IDs and orders
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
-        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
+        const customerIdsRef = ref(database, `sellers/${sellerIdSafe}/customers`);
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
-        let customersData = {};
+        let customerIds = [];
         let ordersData = [];
 
         const processCustomerData = () => {
-            const customerList = Object.values(customersData).map(customer => {
-                const customerOrders = ordersData.filter(order => order.buyer_phone === customer.phone);
+            if (!customerIds || customerIds.length === 0) {
+                setCustomers([]);
+                setLoading(false);
+                return;
+            }
+
+            const customerList = customerIds.map(phone => {
+                const customerOrders = ordersData.filter(order => order.buyer_phone === phone);
+
+                // Get name from first order or use phone
+                const name = customerOrders.length > 0
+                    ? (customerOrders[0].buyer_name || phone)
+                    : phone;
 
                 return {
-                    phone: customer.phone,
-                    name: customer.name || customer.phone,
+                    phone: phone,
+                    name: name,
                     totalOrders: customerOrders.length,
                     totalSpent: customerOrders.reduce((sum, order) => sum + (order.total_amount || order.amount || 0), 0),
                     lastOrderDate: customerOrders.length > 0
                         ? customerOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at
-                        : customer.created_at,
+                        : null,
                     orders: customerOrders
                 };
-            }).sort((a, b) => new Date(b.lastOrderDate) - new Date(a.lastOrderDate));
+            }).sort((a, b) => {
+                if (!a.lastOrderDate) return 1;
+                if (!b.lastOrderDate) return -1;
+                return new Date(b.lastOrderDate) - new Date(a.lastOrderDate);
+            });
 
             setCustomers(customerList);
             setLoading(false);
         };
 
-        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
-            customersData = snapshot.val() || {};
+        const unsubscribeCustomerIds = onValue(customerIdsRef, (snapshot) => {
+            customerIds = snapshot.val() || [];
             processCustomerData();
         });
 
@@ -59,7 +74,7 @@ export default function Customers() {
         });
 
         return () => {
-            unsubscribeCustomers();
+            unsubscribeCustomerIds();
             unsubscribeOrders();
         };
     }, []);
