@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { User, Phone, ShoppingBag, Calendar, X, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { User, Phone, ShoppingBag, Calendar, X, Clock, CheckCircle, Truck, XCircle, MessageCircle, Send } from 'lucide-react';
 import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
+import { useToast } from '../hooks/useToast';
 
 export default function Customers() {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'conversation'
+    const [conversation, setConversation] = useState([]);
+    const [loadingConversation, setLoadingConversation] = useState(false);
+    const [newMessage, setNewMessage] = useState('');
+    const [sending, setSending] = useState(false);
+    const { success, error } = useToast();
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -21,10 +28,11 @@ export default function Customers() {
                     if (!customerMap.has(order.buyer_phone)) {
                         customerMap.set(order.buyer_phone, {
                             phone: order.buyer_phone,
+                            name: order.buyer_name || 'Unknown',
                             totalOrders: 0,
                             totalSpent: 0,
                             lastOrderDate: order.created_at,
-                            orders: [] // Store all orders for this customer
+                            orders: []
                         });
                     }
 
@@ -37,14 +45,13 @@ export default function Customers() {
                     customer.orders.push(order);
                 });
 
-                // Sort customers by last order date descending
                 const customerList = Array.from(customerMap.values()).sort((a, b) =>
                     new Date(b.lastOrderDate) - new Date(a.lastOrderDate)
                 );
 
                 setCustomers(customerList);
-            } catch (error) {
-                console.error("Failed to fetch customers", error);
+            } catch (err) {
+                console.error("Failed to fetch customers", err);
             } finally {
                 setLoading(false);
             }
@@ -52,6 +59,50 @@ export default function Customers() {
 
         fetchCustomers();
     }, []);
+
+    // Fetch conversation when tab changes
+    useEffect(() => {
+        if (selectedCustomer && activeTab === 'conversation') {
+            fetchConversation();
+        }
+    }, [selectedCustomer, activeTab]);
+
+    const fetchConversation = async () => {
+        if (!selectedCustomer) return;
+
+        setLoadingConversation(true);
+        try {
+            const res = await api.get(`/customers/${selectedCustomer.phone}/conversation`);
+            setConversation(res.data.conversation || []);
+        } catch (err) {
+            console.error("Failed to fetch conversation", err);
+            error('Failed to load conversation');
+        } finally {
+            setLoadingConversation(false);
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || !selectedCustomer) return;
+
+        setSending(true);
+        try {
+            await api.post(`/customers/${selectedCustomer.phone}/send-message`, {
+                message: newMessage
+            });
+
+            success('Message sent successfully');
+            setNewMessage('');
+
+            // Refresh conversation
+            await fetchConversation();
+        } catch (err) {
+            console.error("Failed to send message", err);
+            error('Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
 
     const StatusBadge = ({ status }) => {
         const styles = {
@@ -81,7 +132,7 @@ export default function Customers() {
                 ) : customers.map((customer) => (
                     <div
                         key={customer.phone}
-                        onClick={() => setSelectedCustomer(customer)}
+                        onClick={() => { setSelectedCustomer(customer); setActiveTab('conversation'); }}
                         className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 group hover:border-indigo-500/30 transition-all cursor-pointer hover:bg-slate-800/50"
                     >
                         <div className="flex items-center gap-4 mb-6">
@@ -89,8 +140,8 @@ export default function Customers() {
                                 <User className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">{customer.phone}</h3>
-                                <p className="text-sm text-slate-500">Verified Customer</p>
+                                <h3 className="text-lg font-semibold text-white">{customer.name}</h3>
+                                <p className="text-sm text-slate-500">{customer.phone}</p>
                             </div>
                         </div>
 
@@ -136,8 +187,8 @@ export default function Customers() {
                                         <User className="w-6 h-6 text-indigo-400" />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-bold text-white">{selectedCustomer.phone}</h2>
-                                        <p className="text-slate-400 text-sm">Customer Details & Order History</p>
+                                        <h2 className="text-2xl font-bold text-white">{selectedCustomer.name}</h2>
+                                        <p className="text-slate-400 text-sm">{selectedCustomer.phone}</p>
                                     </div>
                                 </div>
                                 <button
@@ -148,36 +199,132 @@ export default function Customers() {
                                 </button>
                             </div>
 
-                            <div className="p-6 overflow-y-auto custom-scrollbar">
-                                <h3 className="text-lg font-semibold text-white mb-4">Order History</h3>
-                                <div className="space-y-4">
-                                    {selectedCustomer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((order) => (
-                                        <div key={order.order_id} className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <span className="text-indigo-400 font-mono font-medium">#{order.order_id}</span>
-                                                    <span className="text-slate-500 text-sm">
-                                                        {new Date(order.created_at).toLocaleString()}
-                                                    </span>
-                                                </div>
-                                                <p className="text-slate-300 text-sm line-clamp-1">
-                                                    {order.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}
-                                                </p>
-                                            </div>
+                            {/* Tabs */}
+                            <div className="flex border-b border-slate-800 bg-slate-900/30">
+                                <button
+                                    onClick={() => setActiveTab('conversation')}
+                                    className={cn(
+                                        "px-6 py-3 font-medium transition-all flex items-center gap-2",
+                                        activeTab === 'conversation'
+                                            ? "text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5"
+                                            : "text-slate-500 hover:text-slate-300"
+                                    )}
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    Conversation
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('orders')}
+                                    className={cn(
+                                        "px-6 py-3 font-medium transition-all flex items-center gap-2",
+                                        activeTab === 'orders'
+                                            ? "text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5"
+                                            : "text-slate-500 hover:text-slate-300"
+                                    )}
+                                >
+                                    <ShoppingBag className="w-4 h-4" />
+                                    Orders
+                                </button>
+                            </div>
 
-                                            <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-                                                <div className="text-right">
-                                                    <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Total</p>
-                                                    <p className="text-white font-bold">₹{(order.total_amount || order.amount).toLocaleString()}</p>
+                            {/* Content */}
+                            <div className="flex-1 overflow-hidden">
+                                {activeTab === 'orders' ? (
+                                    <div className="p-6 overflow-y-auto custom-scrollbar h-full">
+                                        <h3 className="text-lg font-semibold text-white mb-4">Order History</h3>
+                                        <div className="space-y-4">
+                                            {selectedCustomer.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((order) => (
+                                                <div key={order.order_id} className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <span className="text-indigo-400 font-mono font-medium">#{order.order_id}</span>
+                                                            <span className="text-slate-500 text-sm">
+                                                                {new Date(order.created_at).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-slate-300 text-sm line-clamp-1">
+                                                            {order.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                                                        <div className="text-right">
+                                                            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Total</p>
+                                                            <p className="text-white font-bold">₹{(order.total_amount || order.amount).toLocaleString()}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Status</p>
+                                                            <StatusBadge status={order.order_status} />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Status</p>
-                                                    <StatusBadge status={order.order_status} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col h-full">
+                                        {/* Messages */}
+                                        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-950/30">
+                                            {loadingConversation ? (
+                                                <div className="flex items-center justify-center h-full">
+                                                    <div className="text-slate-400">Loading conversation...</div>
                                                 </div>
+                                            ) : conversation.length === 0 ? (
+                                                <div className="flex items-center justify-center h-full">
+                                                    <div className="text-center text-slate-500">
+                                                        <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                                        <p>No conversation history yet</p>
+                                                        <p className="text-sm mt-1">Send a message to start the conversation</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {conversation.map((msg, index) => (
+                                                        <div key={index} className={cn(
+                                                            "flex",
+                                                            msg.role === 'assistant' ? "justify-end" : "justify-start"
+                                                        )}>
+                                                            <div className={cn(
+                                                                "max-w-[70%] rounded-2xl px-4 py-3",
+                                                                msg.role === 'assistant'
+                                                                    ? "bg-indigo-600 text-white rounded-br-sm"
+                                                                    : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                                                            )}>
+                                                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Message Input */}
+                                        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+                                            <div className="flex gap-3">
+                                                <input
+                                                    type="text"
+                                                    value={newMessage}
+                                                    onChange={(e) => setNewMessage(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && !sending && handleSendMessage()}
+                                                    placeholder="Type a message..."
+                                                    className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                                    disabled={sending}
+                                                />
+                                                <button
+                                                    onClick={handleSendMessage}
+                                                    disabled={!newMessage.trim() || sending}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-xl px-6 py-3 font-medium transition-colors flex items-center gap-2"
+                                                >
+                                                    {sending ? (
+                                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Send className="w-5 h-5" />
+                                                    )}
+                                                </button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </div>

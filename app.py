@@ -1072,6 +1072,59 @@ def razorpay_webhook():
         return jsonify({'error': str(e)}), 500
 
 
+# ===== CUSTOMER CONVERSATION ENDPOINTS =====
+
+@app.route('/api/customers/<phone>/conversation', methods=['GET'])
+def get_customer_conversation(phone):
+    """Get conversation history for a customer"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        from firebase_db import get_conversation_history
+        history = get_conversation_history(seller_id, phone, limit=50)  # Get more messages for full view
+        
+        return jsonify({
+            'conversation': history,
+            'count': len(history)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error fetching conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/customers/<phone>/send-message', methods=['POST'])
+def send_customer_message(phone):
+    """Send a message to a customer via WhatsApp"""
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        data = request.get_json()
+        message = data.get('message', '')
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Send via WhatsApp
+        from whatsapp_msg import send_whatsapp_message
+        result = send_whatsapp_message(phone, message, seller_id)
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Message sent successfully'
+            }), 200
+        else:
+            return jsonify({'error': 'Failed to send message'}), 500
+        
+    except Exception as e:
+        print(f"Error sending message: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
