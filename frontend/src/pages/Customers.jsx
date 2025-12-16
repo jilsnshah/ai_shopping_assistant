@@ -279,21 +279,61 @@ export default function Customers() {
                                                 </div>
                                             ) : (
                                                 <div className="space-y-4">
-                                                    {conversation.map((msg, index) => (
-                                                        <div key={index} className={cn(
-                                                            "flex",
-                                                            msg.role === 'assistant' ? "justify-end" : "justify-start"
-                                                        )}>
-                                                            <div className={cn(
-                                                                "max-w-[70%] rounded-2xl px-4 py-3",
-                                                                msg.role === 'assistant'
-                                                                    ? "bg-indigo-600 text-white rounded-br-sm"
-                                                                    : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                                                    {conversation.map((msg, index) => {
+                                                        // Check if this is the first message from this sender or if sender changed
+                                                        const showSenderLabel = index === 0 ||
+                                                            conversation[index - 1].role !== msg.role;
+
+                                                        // Format timestamp
+                                                        const messageTime = msg.timestamp
+                                                            ? new Date(msg.timestamp).toLocaleTimeString('en-US', {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })
+                                                            : '';
+
+                                                        return (
+                                                            <div key={index} className={cn(
+                                                                "flex flex-col",
+                                                                msg.role === 'assistant' ? "items-end" : "items-start"
                                                             )}>
-                                                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                                                {/* Sender Label */}
+                                                                {showSenderLabel && (
+                                                                    <div className={cn(
+                                                                        "text-xs font-medium mb-1 px-1",
+                                                                        msg.role === 'assistant'
+                                                                            ? "text-indigo-400"
+                                                                            : "text-slate-400"
+                                                                    )}>
+                                                                        {msg.role === 'assistant' ? 'YOU' : selectedCustomer.name}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Message Bubble */}
+                                                                <div className={cn(
+                                                                    "max-w-[70%] rounded-2xl px-4 py-2",
+                                                                    msg.role === 'assistant'
+                                                                        ? "bg-indigo-600 text-white rounded-br-sm"
+                                                                        : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                                                                )}>
+                                                                    <p className="text-sm whitespace-pre-wrap mb-1">{msg.content}</p>
+
+                                                                    {/* Timestamp */}
+                                                                    {messageTime && (
+                                                                        <div className={cn(
+                                                                            "text-[10px] text-right mt-1",
+                                                                            msg.role === 'assistant'
+                                                                                ? "text-indigo-200"
+                                                                                : "text-slate-500"
+                                                                        )}>
+                                                                            {messageTime}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

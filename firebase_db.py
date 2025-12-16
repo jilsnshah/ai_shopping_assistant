@@ -738,7 +738,8 @@ def get_conversation_history(seller_id, buyer_phone, limit=10):
         for msg_id, msg_data in sorted_messages:
             messages.append({
                 "role": msg_data["role"],
-                "content": msg_data["content"]
+                "content": msg_data["content"],
+                "timestamp": msg_data.get("timestamp", 0)  # Include timestamp
             })
         
         print(f"✅ Retrieved {len(messages)} messages from Firebase for {buyer_phone}")
