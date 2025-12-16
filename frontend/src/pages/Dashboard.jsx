@@ -49,18 +49,26 @@ export default function Dashboard() {
     const [recentActivity, setRecentActivity] = useState([]);
 
     useEffect(() => {
-        // Set up Firebase real-time listener for seller data
+        // Set up Firebase real-time listeners for seller data and customers
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
+        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
 
-        const unsubscribe = onValue(sellerRef, (snapshot) => {
+        let dashboardData = { orders: [], products: [] };
+        let customerIds = [];
+
+        const processData = () => {
+            processDashboardData(dashboardData, customerIds);
+        };
+
+        const unsubscribeSeller = onValue(sellerRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const dashboardData = {
+                dashboardData = {
                     orders: data.orders || [],
                     products: data.products || []
                 };
-                processDashboardData(dashboardData);
+                processData();
             }
             setLoading(false);
         }, (error) => {
@@ -68,7 +76,15 @@ export default function Dashboard() {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
+            customerIds = snapshot.val() || [];
+            processData();
+        });
+
+        return () => {
+            unsubscribeSeller();
+            unsubscribeCustomers();
+        };
     }, []);
 
     const processDashboardData = (data, customerIds) => {
