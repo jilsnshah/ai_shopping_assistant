@@ -518,6 +518,11 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
     
     # Save to seller database
     if FIREBASE_ENABLED:
+        # Add customer ID to customers list
+        from firebase_db import add_customer_id
+        add_customer_id(seller_id=seller_id, buyer_phone=buyer_phone)
+        
+        # Save order
         if not add_order(seller_id, order):
             return {
                 "error": "Order created but failed to save to seller DB",

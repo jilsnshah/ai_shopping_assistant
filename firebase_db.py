@@ -989,3 +989,62 @@ if __name__ == "__main__":
     
     # Uncomment to migrate existing JSON data to Firebase
     # migrate_json_to_firebase()
+
+
+# ==================== CUSTOMER MANAGEMENT ====================
+
+def add_customer_id(seller_id, buyer_phone):
+    """
+    Add a buyer_phone to the customers list (if not already present)
+    
+    Args:
+        seller_id (str): Seller ID
+        buyer_phone (str): Buyer's phone number
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        # Reference to customers list
+        customers_ref = db.reference(f'sellers/{safe_seller_id}/customers')
+        customers = customers_ref.get() or []
+        
+        # Add buyer_phone if not already in list
+        if buyer_phone not in customers:
+            customers.append(buyer_phone)
+            customers_ref.set(customers)
+            print(f"✅ Added customer ID: {buyer_phone}")
+        else:
+            print(f"ℹ️ Customer ID already exists: {buyer_phone}")
+        
+        return True
+    except Exception as e:
+        print(f"❌ Error adding customer ID: {e}")
+        return False
+
+
+def get_customer_ids(seller_id):
+    """
+    Get all customer IDs (buyer_phone list) for a seller
+    
+    Args:
+        seller_id (str): Seller ID
+        
+    Returns:
+        list: List of buyer phone numbers
+    """
+    try:
+        initialize_firebase()
+        safe_seller_id = sanitize_email_for_firebase(seller_id)
+        
+        customers_ref = db.reference(f'sellers/{safe_seller_id}/customers')
+        customers = customers_ref.get() or []
+        
+        print(f"✅ Retrieved {len(customers)} customer IDs")
+        return customers
+    except Exception as e:
+        print(f"❌ Error getting customer IDs: {e}")
+        return []

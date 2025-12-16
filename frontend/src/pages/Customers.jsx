@@ -19,49 +19,49 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
-        // Set up Firebase real-time listener for orders to derive customers
+        // Set up Firebase real-time listeners for customers and orders
         const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
-        const unsubscribe = onValue(ordersRef, (snapshot) => {
-            const data = snapshot.val();
-            const orders = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
+        let customersData = {};
+        let ordersData = [];
 
-            const customerMap = new Map();
+        const processCustomerData = () => {
+            const customerList = Object.values(customersData).map(customer => {
+                const customerOrders = ordersData.filter(order => order.buyer_phone === customer.phone);
 
-            orders.forEach(order => {
-                if (!customerMap.has(order.buyer_phone)) {
-                    customerMap.set(order.buyer_phone, {
-                        phone: order.buyer_phone,
-                        name: order.buyer_name || 'Unknown',
-                        totalOrders: 0,
-                        totalSpent: 0,
-                        lastOrderDate: order.created_at,
-                        orders: []
-                    });
-                }
-
-                const customer = customerMap.get(order.buyer_phone);
-                customer.totalOrders += 1;
-                customer.totalSpent += (order.total_amount || order.amount || 0);
-                if (new Date(order.created_at) > new Date(customer.lastOrderDate)) {
-                    customer.lastOrderDate = order.created_at;
-                }
-                customer.orders.push(order);
-            });
-
-            const customerList = Array.from(customerMap.values()).sort((a, b) =>
-                new Date(b.lastOrderDate) - new Date(a.lastOrderDate)
-            );
+                return {
+                    phone: customer.phone,
+                    name: customer.name || customer.phone,
+                    totalOrders: customerOrders.length,
+                    totalSpent: customerOrders.reduce((sum, order) => sum + (order.total_amount || order.amount || 0), 0),
+                    lastOrderDate: customerOrders.length > 0
+                        ? customerOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at
+                        : customer.created_at,
+                    orders: customerOrders
+                };
+            }).sort((a, b) => new Date(b.lastOrderDate) - new Date(a.lastOrderDate));
 
             setCustomers(customerList);
             setLoading(false);
-        }, (error) => {
-            console.error("Firebase listener error:", error);
-            setLoading(false);
+        };
+
+        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
+            customersData = snapshot.val() || {};
+            processCustomerData();
         });
 
-        return () => unsubscribe();
+        const unsubscribeOrders = onValue(ordersRef, (snapshot) => {
+            const data = snapshot.val();
+            ordersData = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
+            processCustomerData();
+        });
+
+        return () => {
+            unsubscribeCustomers();
+            unsubscribeOrders();
+        };
     }, []);
 
     // Set up Firebase real-time listener for conversation
