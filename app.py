@@ -529,8 +529,10 @@ def update_order(order_id):
             # Regular JSON
             data = request.get_json()
         
-        # Find and update order
+        # Find and update order (filter out None values from Firebase sparse arrays)
         for order in orders:
+            if order is None:
+                continue
             if order.get('order_id') == order_id or order.get('id') == order_id:
                 # Track if order status or payment status changed
                 old_order_status = order.get('order_status')
@@ -744,6 +746,8 @@ def update_order(order_id):
         return jsonify({'error': 'Order not found'}), 404
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
