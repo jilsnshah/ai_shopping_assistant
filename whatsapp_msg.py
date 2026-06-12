@@ -202,7 +202,12 @@ def collect_buyer_name(phone_number: str, message: str, agent) -> dict:
             
             # Check if name was confirmed (tool was called)
             if "CONFIRMED:" in response_text:
-                confirmed_name = response_text.split("CONFIRMED:")[1].strip()
+                # Extract just the name part - take first line and clean it
+                raw_name = response_text.split("CONFIRMED:")[1].strip()
+                # Get only the first line (name might be followed by other text)
+                confirmed_name = raw_name.split('\n')[0].strip()
+                # Also strip any trailing punctuation or extra characters
+                confirmed_name = confirmed_name.rstrip('.,!?;:')
                 print(f"✅ Name confirmed: {confirmed_name}")
                 return {
                     "confirmed": True,
@@ -396,6 +401,7 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
                 print(f"✅ Creating profile for: {confirmed_name}")
                 
                 create_result = create_buyer_profile(phone_number, confirmed_name, seller_id)
+                print(f"📋 Create profile result: {create_result}")
                 
                 if create_result.get('success'):
                     # Clean up name collection agent
@@ -419,7 +425,10 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
                     
                     return f"Thank you, {confirmed_name}! Your profile has been created. ✅\n\n{welcome_response}"
                 else:
-                    return "Sorry, I couldn't create your profile. Please try again or contact support."
+                    # Profile creation failed - log the error
+                    error_msg = create_result.get('error', 'Unknown error')
+                    print(f"❌ Profile creation failed: {error_msg}")
+                    return f"Sorry, I couldn't create your profile: {error_msg}. Please try again or contact support."
             else:
                 # Still collecting name, return agent's response
                 return result.get('response')

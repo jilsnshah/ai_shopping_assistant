@@ -29,6 +29,7 @@ const StatCard = ({ title, value, icon: Icon, colorClass, gradient, delay = 0 })
 );
 
 export default function Payments() {
+    const [sellerId, setSellerId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         collected: 0,
@@ -37,8 +38,27 @@ export default function Payments() {
     });
 
     useEffect(() => {
+        const fetchSellerInfo = async () => {
+            try {
+                const response = await api.get('/seller_info');
+                if (response.data && response.data.id) {
+                    setSellerId(response.data.id);
+                }
+            } catch (error) {
+                console.error("Error fetching seller info:", error);
+            }
+        };
+        fetchSellerInfo();
+    }, []);
+
+    useEffect(() => {
+        if (!sellerId) return;
+
+        // Sanitize email
+        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
+        const sellerIdSafe = sanitizeEmail(sellerId);
+
         // Set up Firebase real-time listener for orders (payment data)
-        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
         const unsubscribe = onValue(ordersRef, (snapshot) => {
@@ -66,7 +86,7 @@ export default function Payments() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [sellerId]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {

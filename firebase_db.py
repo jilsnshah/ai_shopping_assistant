@@ -65,7 +65,7 @@ def initialize_firebase():
     
     firebase_admin.initialize_app(cred, {
         'databaseURL': database_url,
-        'storageBucket': 'ai-shopping-assistant-jils.appspot.com'
+        'storageBucket': 'jils-5a82d.firebasestorage.app'
     })
     
     _firebase_initialized = True
@@ -1166,7 +1166,9 @@ def get_customer(seller_id, phone_number):
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
-        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}')
+        # Sanitize phone number for Firebase compatibility (+ is not allowed in keys)
+        safe_phone = phone_number.replace('+', '_plus_') if phone_number else phone_number
+        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{safe_phone}')
         return customer_ref.get()
     except Exception as e:
         print(f"❌ Error getting customer: {e}")
@@ -1188,7 +1190,9 @@ def update_customer(seller_id, phone_number, customer_data):
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
-        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}')
+        # Sanitize phone number for Firebase compatibility (+ is not allowed in keys)
+        safe_phone = phone_number.replace('+', '_plus_') if phone_number else phone_number
+        customer_ref = db.reference(f'sellers/{safe_seller_id}/customers/{safe_phone}')
         customer_ref.set(customer_data)
         print(f"✅ Customer {phone_number} updated for seller {seller_id}")
         return True
@@ -1211,7 +1215,9 @@ def get_customer_cart(seller_id, phone_number):
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
-        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/cart')
+        # Sanitize phone number for Firebase compatibility
+        safe_phone = phone_number.replace('+', '_plus_') if phone_number else phone_number
+        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{safe_phone}/cart')
         cart = cart_ref.get()
         return cart if cart else []
     except Exception as e:
@@ -1234,7 +1240,9 @@ def update_customer_cart(seller_id, phone_number, cart):
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
-        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/cart')
+        # Sanitize phone number for Firebase compatibility
+        safe_phone = phone_number.replace('+', '_plus_') if phone_number else phone_number
+        cart_ref = db.reference(f'sellers/{safe_seller_id}/customers/{safe_phone}/cart')
         cart_ref.set(cart)
         return True
     except Exception as e:
@@ -1257,7 +1265,9 @@ def add_customer_order_ref(seller_id, phone_number, order_ref):
     try:
         initialize_firebase()
         safe_seller_id = sanitize_email_for_firebase(seller_id)
-        orders_ref = db.reference(f'sellers/{safe_seller_id}/customers/{phone_number}/orders')
+        # Sanitize phone number for Firebase compatibility
+        safe_phone = phone_number.replace('+', '_plus_') if phone_number else phone_number
+        orders_ref = db.reference(f'sellers/{safe_seller_id}/customers/{safe_phone}/orders')
         orders = orders_ref.get() or []
         orders.append(order_ref)
         orders_ref.set(orders)

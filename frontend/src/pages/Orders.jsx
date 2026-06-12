@@ -64,6 +64,7 @@ const PaymentBadge = ({ status }) => {
 };
 
 export default function Orders() {
+    const [sellerId, setSellerId] = useState(null);
     const [orders, setOrders] = useState([]);
     const [filteredOrders, setFilteredOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -93,8 +94,27 @@ export default function Orders() {
     const PAYMENT_STATUSES = ['Pending', 'Requested', 'Completed'];
 
     useEffect(() => {
+        const fetchSellerInfo = async () => {
+            try {
+                const response = await api.get('/seller_info');
+                if (response.data && response.data.id) {
+                    setSellerId(response.data.id);
+                }
+            } catch (error) {
+                console.error("Error fetching seller info:", error);
+            }
+        };
+        fetchSellerInfo();
+    }, []);
+
+    useEffect(() => {
+        if (!sellerId) return;
+
+        // Sanitize email
+        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
+        const sellerIdSafe = sanitizeEmail(sellerId);
+
         // Set up Firebase real-time listener for orders
-        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
         const unsubscribe = onValue(ordersRef, (snapshot) => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, MessageSquare, Power, X, Sparkles, Activity, Zap } from 'lucide-react';
+import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, MessageSquare, Power, X, Sparkles, Activity, Zap, Link2 } from 'lucide-react';
 import api from '../api/axios';
 import { cn } from '../lib/utils';
 import { staggerContainer, staggerItem, fadeInUp } from '../lib/motion';
@@ -151,8 +151,159 @@ export default function Dashboard() {
         }
     };
 
+    // Initialize Facebook SDK for WhatsApp Embedded Signup
     useEffect(() => {
-        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        // Load Facebook SDK
+        window.fbAsyncInit = function () {
+            window.FB.init({
+                appId: '2227135407795713',
+                autoLogAppEvents: true,
+                xfbml: true,
+                version: 'v24.0'
+            });
+        };
+
+        // Load SDK script if not already loaded
+        if (!document.getElementById('facebook-jssdk')) {
+            const script = document.createElement('script');
+            script.id = 'facebook-jssdk';
+            script.src = 'https://connect.facebook.net/en_US/sdk.js';
+            script.async = true;
+            script.defer = true;
+            script.crossOrigin = 'anonymous';
+            document.body.appendChild(script);
+        }
+    }, []);
+
+    // Launch WhatsApp Embedded Signup
+    const launchWhatsAppSignup = () => {
+        if (!window.FB) {
+            alert('Facebook SDK is still loading. Please try again in a moment.');
+            return;
+        }
+
+        window.FB.login(function (response) {
+            console.log('FB.login full response:', JSON.stringify(response, null, 2));
+
+            if (response.authResponse) {
+                const code = response.authResponse.code;
+                console.log('Got auth code:', code ? code.substring(0, 50) + '...' : 'undefined');
+
+                if (code) {
+                    console.log('Sending auth code to backend for token exchange...');
+                    connectWhatsAppWithCode(code);
+                } else {
+                    console.error('No code in authResponse:', response.authResponse);
+                    alert('Authentication failed - no authorization code received. Please try again.');
+                }
+            } else {
+                console.log('User cancelled login or did not fully authorize.');
+            }
+        }, {
+            config_id: '738354569319003', // WhatsApp Embedded Signup Configuration
+            response_type: 'code',  // WhatsApp Embedded Signup only supports code flow
+            override_default_response_type: true,
+            extras: {
+                setup: {},
+                featureType: '',
+                sessionInfoVersion: 2
+            }
+        });
+    };
+
+
+    // Handle code exchange (when response_type is 'code')
+    const connectWhatsAppWithCode = async (code) => {
+        setAiLoading(true);
+        try {
+            const response = await api.post('/whatsapp/connect', { code: code });
+            if (response.data.success) {
+                setAiAssistantActive(true);
+                const businessName = response.data.business_name || 'WhatsApp Business';
+                const phoneDisplay = response.data.phone_display || '';
+                alert(`✅ ${businessName} connected successfully!\n${phoneDisplay ? `Phone: ${phoneDisplay}` : ''}`);
+            } else {
+                throw new Error(response.data.error || 'Connection failed');
+            }
+        } catch (error) {
+            console.error('Failed to connect WhatsApp:', error);
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to connect WhatsApp';
+            alert(`❌ ${errorMsg}\n\nPlease try again or use manual activation.`);
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    // Send access token to backend and complete WhatsApp connection
+    const connectWhatsAppBackend = async (accessToken) => {
+        console.log('connectWhatsAppBackend called with accessToken:', accessToken);
+        console.log('accessToken type:', typeof accessToken);
+        console.log('accessToken length:', accessToken?.length);
+
+        if (!accessToken) {
+            console.error('No accessToken provided to connectWhatsAppBackend!');
+            alert('❌ No access token received from Facebook. Please try again.');
+            return;
+        }
+
+        setAiLoading(true);
+        try {
+            console.log('Sending to backend:', { access_token: accessToken.substring(0, 50) + '...' });
+            const response = await api.post('/whatsapp/connect', { access_token: accessToken });
+            if (response.data.success) {
+                setAiAssistantActive(true);
+                const businessName = response.data.business_name || 'WhatsApp Business';
+                const phoneDisplay = response.data.phone_display || '';
+                alert(`✅ ${businessName} connected successfully!\n${phoneDisplay ? `Phone: ${phoneDisplay}` : ''}`);
+            } else {
+                throw new Error(response.data.error || 'Connection failed');
+            }
+        } catch (error) {
+            console.error('Failed to connect WhatsApp:', error);
+            console.error('Error response:', error.response?.data);
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to connect WhatsApp';
+            alert(`❌ ${errorMsg}\n\nPlease try again or use manual activation.`);
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+
+    // State for seller ID
+    const [sellerId, setSellerId] = useState(null);
+
+    // Fetch seller info on mount
+    useEffect(() => {
+        const fetchSellerInfo = async () => {
+            try {
+                const response = await api.get('/seller_info');
+                if (response.data && response.data.id) {
+                    setSellerId(response.data.id);
+                } else {
+                    // Fallback or retry if needed, but for now just log
+                    console.error("No seller ID returned from API");
+                    // Optionally redirect to login if this persists, but api interceptor should handle 401
+                }
+            } catch (error) {
+                console.error("Error fetching seller info:", error);
+            }
+        };
+
+        fetchSellerInfo();
+    }, []);
+
+    useEffect(() => {
+        if (!sellerId) return;
+
+        // Sanitize email for Firebase path (replace . with _dot_, @ with _at_, etc)
+        // Matching backend logic: . -> _dot_, @ -> _at_, / -> _slash_
+        const sanitizeEmail = (email) => {
+            return email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
+        };
+
+        const sellerIdSafe = sanitizeEmail(sellerId);
+        console.log("Connecting to Firebase with seller ID:", sellerIdSafe);
+
         const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
         const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
 
@@ -166,10 +317,20 @@ export default function Dashboard() {
         const unsubscribeSeller = onValue(sellerRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                dashboardData = {
-                    orders: data.orders || [],
-                    products: data.products || []
+                // Firebase returns sparse arrays as objects, so we need to handle both cases
+                const processArray = (arr) => {
+                    if (!arr) return [];
+                    return Array.isArray(arr) ? arr : Object.values(arr);
                 };
+
+                dashboardData = {
+                    orders: processArray(data.orders),
+                    products: processArray(data.products)
+                };
+                processData();
+            } else {
+                // Initialize with empty if no data exists yet
+                dashboardData = { orders: [], products: [] };
                 processData();
             }
             setLoading(false);
@@ -196,7 +357,7 @@ export default function Dashboard() {
             unsubscribeSeller();
             unsubscribeCustomers();
         };
-    }, []);
+    }, [sellerId]);
 
     const processDashboardData = (data, customerIds) => {
         const { orders, products } = data;
@@ -454,19 +615,31 @@ export default function Dashboard() {
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={aiAssistantActive ? handleDeactivateWhatsApp : () => setShowCredentialsForm(true)}
-                        disabled={aiLoading}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50",
-                            aiAssistantActive
-                                ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
-                                : "btn-premium text-white"
+                    <div className="flex items-center gap-3">
+                        {/* Connect WhatsApp Button - Facebook Embedded Signup */}
+                        {!aiAssistantActive && (
+                            <button
+                                onClick={launchWhatsAppSignup}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30"
+                            >
+                                <Link2 className="w-4 h-4" />
+                                Connect WhatsApp
+                            </button>
                         )}
-                    >
-                        <Power className="w-4 h-4" />
-                        {aiLoading ? 'Processing...' : (aiAssistantActive ? 'Deactivate' : 'Activate')}
-                    </button>
+                        <button
+                            onClick={aiAssistantActive ? handleDeactivateWhatsApp : () => setShowCredentialsForm(true)}
+                            disabled={aiLoading}
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50",
+                                aiAssistantActive
+                                    ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
+                                    : "btn-premium text-white"
+                            )}
+                        >
+                            <Power className="w-4 h-4" />
+                            {aiLoading ? 'Processing...' : (aiAssistantActive ? 'Deactivate' : 'Activate')}
+                        </button>
+                    </div>
                 </div>
             </motion.div>
 

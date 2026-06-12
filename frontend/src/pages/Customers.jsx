@@ -8,6 +8,7 @@ import { database } from '../firebase/config';
 import { ref, onValue, off } from 'firebase/database';
 
 export default function Customers() {
+    const [sellerId, setSellerId] = useState(null);
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -19,8 +20,27 @@ export default function Customers() {
     const { success, error } = useToast();
 
     useEffect(() => {
+        const fetchSellerInfo = async () => {
+            try {
+                const response = await api.get('/seller_info');
+                if (response.data && response.data.id) {
+                    setSellerId(response.data.id);
+                }
+            } catch (error) {
+                console.error("Error fetching seller info:", error);
+            }
+        };
+        fetchSellerInfo();
+    }, []);
+
+    useEffect(() => {
+        if (!sellerId) return;
+
+        // Sanitize email
+        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
+        const sellerIdSafe = sanitizeEmail(sellerId);
+
         // Set up Firebase real-time listeners for customer data and orders
-        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
         const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
         const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
 
@@ -101,7 +121,7 @@ export default function Customers() {
             unsubscribeCustomers();
             unsubscribeOrders();
         };
-    }, []);
+    }, [sellerId]);
 
 
     // Set up Firebase real-time listener for conversation
@@ -111,7 +131,11 @@ export default function Customers() {
         setLoadingConversation(true);
 
         // Create reference to conversation path
-        const sellerIdSafe = 'jilsnshah_at_gmail_dot_com';
+        // Use sanitized sellerId from state or fallback if checking logic
+        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
+        const sellerIdSafe = sellerId ? sanitizeEmail(sellerId) : 'unknown_seller'; // Should ideally wait for sellerId
+        if (!sellerId) return;
+
         const phoneStr = String(selectedCustomer.phone || '');
         const buyerPhoneSafe = phoneStr.replace(/[.#$/\\[\\]]/g, '_');
         const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);

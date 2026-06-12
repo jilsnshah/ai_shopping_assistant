@@ -1157,6 +1157,69 @@ def razorpay_webhook():
 
 # ===== WHATSAPP AI ASSISTANT ENDPOINTS =====
 
+@app.route('/api/whatsapp/connect', methods=['POST'])
+def connect_whatsapp():
+    """
+    Handle WhatsApp Embedded Signup callback.
+    Processes the access token or auth code from Facebook, fetches business details,
+    and saves credentials automatically.
+    """
+    try:
+        seller_id = session.get('seller_id')
+        if not seller_id:
+            return jsonify({'error': 'Not logged in'}), 401
+        
+        data = request.get_json()
+        access_token = data.get('access_token')
+        code = data.get('code')
+        
+        # If we got a code, exchange it for an access token
+        if code and not access_token:
+            from whatsapp_signup import exchange_code_for_token
+            token_result = exchange_code_for_token(code)
+            if token_result and token_result.get('access_token'):
+                access_token = token_result['access_token']
+            else:
+                return jsonify({'error': 'Failed to exchange auth code for token'}), 400
+        
+        if not access_token:
+            return jsonify({'error': 'Access token or auth code is required'}), 400
+        
+        # Process the Embedded Signup
+        from whatsapp_signup import process_embedded_signup
+        result = process_embedded_signup(access_token)
+        
+        if not result.get('success'):
+            error_msg = result.get('error', 'Failed to process WhatsApp signup')
+            return jsonify({'error': error_msg}), 400
+        
+        # Save credentials to Firebase
+        from firebase_db import save_whatsapp_credentials
+        save_result = save_whatsapp_credentials(
+            seller_id=seller_id,
+            phone_number_id=result['phone_number_id'],
+            business_account_id=result['business_account_id'],
+            access_token=result['access_token'],
+            verify_token=result['verify_token']
+        )
+        
+        if not save_result:
+            return jsonify({'error': 'Failed to save credentials'}), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'WhatsApp Business connected successfully',
+            'phone_display': result.get('phone_display', ''),
+            'business_name': result.get('business_name', ''),
+            'phone_number_id': result['phone_number_id']
+        }), 200
+        
+    except Exception as e:
+        print(f"Error connecting WhatsApp: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/whatsapp/status', methods=['GET'])
 def get_whatsapp_status():
     """Get WhatsApp AI Assistant activation status"""

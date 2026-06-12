@@ -309,32 +309,44 @@ def process_message(user_message, phone_number, agent, buyer_name=None, conversa
         # Invoke agent with messages
         response = agent.invoke({"messages": messages})
         
-        # Extract output from response
+        # Extract the final AI response - look for last message with actual text
         messages_response = response.get("messages", [])
-        if messages_response:
-            last_message = messages_response[-1]
-            
-            # Handle different content formats
-            if hasattr(last_message, 'content'):
-                content = last_message.content
-            else:
-                content = last_message
-            
-            # If content is a list (like from Gemini), extract text
+        output = ""
+        
+        # Helper to extract text from any content format
+        def extract_text(content):
+            if isinstance(content, str):
+                return content
             if isinstance(content, list):
-                text_parts = []
+                parts = []
                 for item in content:
                     if isinstance(item, dict) and 'text' in item:
-                        text_parts.append(item['text'])
+                        parts.append(item['text'])
                     elif isinstance(item, str):
-                        text_parts.append(item)
-                output = '\n'.join(text_parts)
-            elif isinstance(content, str):
-                output = content
-            else:
-                output = str(content)
-        else:
-            output = "I'm sorry, I couldn't process that request."
+                        parts.append(item)
+                    elif hasattr(item, 'text'):
+                        parts.append(str(item.text))
+                return '\n'.join(parts)
+            if hasattr(content, 'text'):
+                return str(content.text)
+            return str(content) if content else ""
+        
+        # Find last AI message with actual text (skip tool messages)
+        for msg in reversed(messages_response):
+            msg_type = type(msg).__name__
+            # Skip tool messages and human messages - we want the AI response
+            if msg_type in ['ToolMessage', 'HumanMessage']:
+                continue
+            
+            if hasattr(msg, 'content'):
+                text = extract_text(msg.content)
+                if text.strip():
+                    output = text
+                    break
+        
+        # Fallback if no text found
+        if not output.strip():
+            output = "I'm sorry, I couldn't understand that. Could you please rephrase?"
         
         print(f"✅ Response: {output}\n")
         return output
