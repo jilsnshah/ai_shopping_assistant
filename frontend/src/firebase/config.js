@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
     apiKey: "AIzaSyCIGRztRPqBItjL2VGraTGlH2RLBEFZWgo",
@@ -21,3 +22,6 @@ export const database = getDatabase(app);
 
 // Get storage instance
 export const storage = getStorage(app);
+
+// Get auth instance (used for signInWithCustomToken)
+export const auth = getAuth(app);

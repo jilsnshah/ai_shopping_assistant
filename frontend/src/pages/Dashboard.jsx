@@ -9,6 +9,7 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import { Sparkline } from '../components/Sparkline';
 import { SkeletonStatCard, SkeletonChart } from '../components/Skeleton';
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 
 const StatCard = ({ title, value, change, icon: Icon, trend, gradient, delay = 0, sparklineData = [] }) => (
     <motion.div
@@ -271,6 +272,7 @@ export default function Dashboard() {
 
     // State for seller ID
     const [sellerId, setSellerId] = useState(null);
+    const { firebaseReady } = useFirebaseAuth();
 
     // Fetch seller info on mount
     useEffect(() => {
@@ -280,9 +282,7 @@ export default function Dashboard() {
                 if (response.data && response.data.id) {
                     setSellerId(response.data.id);
                 } else {
-                    // Fallback or retry if needed, but for now just log
                     console.error("No seller ID returned from API");
-                    // Optionally redirect to login if this persists, but api interceptor should handle 401
                 }
             } catch (error) {
                 console.error("Error fetching seller info:", error);
@@ -295,69 +295,75 @@ export default function Dashboard() {
     useEffect(() => {
         if (!sellerId) return;
 
-        // Sanitize email for Firebase path (replace . with _dot_, @ with _at_, etc)
-        // Matching backend logic: . -> _dot_, @ -> _at_, / -> _slash_
-        const sanitizeEmail = (email) => {
-            return email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
-        };
+        const sanitizeEmail = (email) =>
+            email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
 
-        const sellerIdSafe = sanitizeEmail(sellerId);
-        console.log("Connecting to Firebase with seller ID:", sellerIdSafe);
+        // --- Real-time path (Firebase authenticated) ---
+        if (firebaseReady) {
+            const sellerIdSafe = sanitizeEmail(sellerId);
+            const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
+            const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
 
-        const sellerRef = ref(database, `sellers/${sellerIdSafe}`);
-        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
+            let dashboardData = { orders: [], products: [] };
+            let customerIds = [];
 
-        let dashboardData = { orders: [], products: [] };
-        let customerIds = [];
+            const processData = () => processDashboardData(dashboardData, customerIds);
 
-        const processData = () => {
-            processDashboardData(dashboardData, customerIds);
-        };
+            const processArray = (arr) => {
+                if (!arr) return [];
+                return Array.isArray(arr) ? arr : Object.values(arr);
+            };
 
-        const unsubscribeSeller = onValue(sellerRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                // Firebase returns sparse arrays as objects, so we need to handle both cases
-                const processArray = (arr) => {
-                    if (!arr) return [];
-                    return Array.isArray(arr) ? arr : Object.values(arr);
-                };
-
-                dashboardData = {
-                    orders: processArray(data.orders),
-                    products: processArray(data.products)
-                };
-                processData();
-            } else {
-                // Initialize with empty if no data exists yet
-                dashboardData = { orders: [], products: [] };
-                processData();
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Firebase listener error:", error);
-            setLoading(false);
-        });
-
-        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                if (Array.isArray(data)) {
-                    customerIds = data;
+            const unsubscribeSeller = onValue(sellerRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    dashboardData = {
+                        orders: processArray(data.orders),
+                        products: processArray(data.products)
+                    };
                 } else {
-                    customerIds = Object.keys(data);
+                    dashboardData = { orders: [], products: [] };
                 }
-            } else {
-                customerIds = [];
-            }
-            processData();
-        });
+                processData();
+                setLoading(false);
+            }, (error) => {
+                console.error('Firebase dashboard error:', error);
+                setLoading(false);
+            });
 
-        return () => {
-            unsubscribeSeller();
-            unsubscribeCustomers();
+            const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
+                const data = snapshot.val();
+                customerIds = data
+                    ? (Array.isArray(data) ? data : Object.keys(data))
+                    : [];
+                processData();
+            });
+
+            return () => { unsubscribeSeller(); unsubscribeCustomers(); };
+        }
+
+        // --- Fallback path (API) when Firebase auth is not ready ---
+        const fetchData = async () => {
+            try {
+                const [ordersRes, productsRes] = await Promise.all([
+                    api.get('/orders'),
+                    api.get('/products')
+                ]);
+                const dashboardData = {
+                    orders: ordersRes.data.orders || [],
+                    products: productsRes.data.products || []
+                };
+                const customerIds = [...new Set((ordersRes.data.orders || []).map(o => o.buyer_phone).filter(Boolean))];
+                processDashboardData(dashboardData, customerIds);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                setLoading(false);
+            }
         };
-    }, [sellerId]);
+
+        fetchData();
+    }, [sellerId, firebaseReady]);
 
     const processDashboardData = (data, customerIds) => {
         const { orders, products } = data;

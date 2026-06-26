@@ -10,6 +10,7 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import { EmptyOrders } from '../components/EmptyStates';
 import { SkeletonTable } from '../components/Skeleton';
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -79,6 +80,8 @@ export default function Orders() {
     const [isSending, setIsSending] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null); // For order detail modal
     const { toasts, removeToast, success, error } = useToast();
+    const { firebaseReady } = useFirebaseAuth();
+
 
     // Message Modal State
     const [messageModal, setMessageModal] = useState({
@@ -110,33 +113,47 @@ export default function Orders() {
     useEffect(() => {
         if (!sellerId) return;
 
-        // Sanitize email
-        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
-        const sellerIdSafe = sanitizeEmail(sellerId);
-
-        // Set up Firebase real-time listener for orders
-        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
-
-        const unsubscribe = onValue(ordersRef, (snapshot) => {
-            const data = snapshot.val();
-            // Firebase returns arrays as objects with numeric keys, convert back to array
-            if (data) {
-                const ordersArray = Array.isArray(data) ? data : Object.values(data);
-                setOrders(ordersArray.filter(Boolean)); // Remove any null/undefined entries
-            } else {
-                setOrders([]);
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Firebase listener error:", error);
-            setLoading(false);
-        });
+        const sanitizeEmail = (email) =>
+            email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
 
         fetchCompanyInfo();
         fetchRazorpayStatus();
 
-        return () => unsubscribe();
-    }, []);
+        // --- Real-time path ---
+        if (firebaseReady) {
+            const sellerIdSafe = sanitizeEmail(sellerId);
+            const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
+
+            const unsubscribe = onValue(ordersRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const ordersArray = Array.isArray(data) ? data : Object.values(data);
+                    setOrders(ordersArray.filter(Boolean));
+                } else {
+                    setOrders([]);
+                }
+                setLoading(false);
+            }, (error) => {
+                console.error('Firebase orders error:', error);
+                setLoading(false);
+            });
+
+            return () => unsubscribe();
+        }
+
+        // --- Fallback path ---
+        const fetchOrders = async () => {
+            try {
+                const response = await api.get('/orders');
+                setOrders(response.data.orders || []);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+                setLoading(false);
+            }
+        };
+        fetchOrders();
+    }, [sellerId, firebaseReady]);
 
     useEffect(() => {
         filterAndSortOrders();
@@ -589,119 +606,156 @@ Thank you! 🙏`;
                 transition={{ delay: 0.1 }}
                 className="glass-card rounded-2xl overflow-hidden"
             >
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="border-b border-slate-800/50 bg-slate-900/50">
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Order ID</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Customer</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Items</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Total</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Payment</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Status</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400">Date</th>
-                            <th className="px-6 py-4 font-semibold text-xs uppercase tracking-wider text-slate-400 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800">
-                        {loading ? (
-                            <tr><td colSpan="8" className="p-8 text-center text-slate-500">Loading...</td></tr>
-                        ) : filteredOrders.length === 0 ? (
-                            <tr><td colSpan="8" className="p-8 text-center text-slate-500">No orders found.</td></tr>
-                        ) : filteredOrders.map((order, index) => (
-                            <motion.tr
-                                key={order.order_id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.02 }}
-                                className="group table-row-premium cursor-pointer border-b border-slate-800/30 last:border-0"
-                                onClick={() => setSelectedOrder(order)}
-                            >
-                                <td className="px-6 py-4">
-                                    <span className="font-mono font-semibold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">#{order.order_id}</span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="font-medium text-white">{order.buyer_phone}</div>
-                                </td>
-                                <td className="px-6 py-4 text-slate-300">
-                                    {order.items ? (
-                                        <div className="flex flex-col gap-1">
-                                            {order.items.map((item, idx) => (
-                                                <div key={idx} className="text-sm">
-                                                    <span>{item.product_name} <span className="text-slate-500">x{item.quantity}</span></span>
-                                                    {item.selected_features && Object.keys(item.selected_features).length > 0 && (
-                                                        <span className="ml-2 text-xs text-indigo-400">
-                                                            ({Object.entries(item.selected_features).map(([k, v]) => `${k}: ${v}`).join(', ')})
-                                                        </span>
+                {loading ? (
+                    <div className="p-10 text-center text-slate-500">Loading orders...</div>
+                ) : filteredOrders.length === 0 ? (
+                    <div className="p-10 text-center text-slate-500">No orders found.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left" style={{ tableLayout: 'fixed', minWidth: '780px' }}>
+                            <colgroup>
+                                <col style={{ width: '72px' }} />   {/* # */}
+                                <col style={{ width: '18%' }} />    {/* Customer */}
+                                <col style={{ width: '28%' }} />    {/* Items */}
+                                <col style={{ width: '80px' }} />   {/* Total */}
+                                <col style={{ width: '130px' }} />  {/* Payment */}
+                                <col style={{ width: '150px' }} />  {/* Status */}
+                                <col style={{ width: '90px' }} />   {/* Date */}
+                                <col style={{ width: '52px' }} />   {/* Actions */}
+                            </colgroup>
+
+                            <thead>
+                                <tr className="border-b border-slate-800/60 bg-slate-900/60">
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Customer</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Items</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Total</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Payment</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
+                                    <th className="px-4 py-3"></th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="divide-y divide-slate-800/40">
+                                {filteredOrders.map((order, index) => (
+                                    <motion.tr
+                                        key={order.order_id}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: index * 0.02 }}
+                                        className="group hover:bg-slate-800/30 transition-colors cursor-pointer"
+                                        onClick={() => setSelectedOrder(order)}
+                                    >
+                                        {/* Order ID */}
+                                        <td className="px-4 py-3.5">
+                                            <span className="font-mono text-sm font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                                                #{order.order_id}
+                                            </span>
+                                        </td>
+
+                                        {/* Customer */}
+                                        <td className="px-4 py-3.5">
+                                            <div className="font-medium text-white text-sm truncate">{order.buyer_name || '—'}</div>
+                                            <div className="text-xs text-slate-500 mt-0.5 truncate">{order.buyer_phone}</div>
+                                        </td>
+
+                                        {/* Items */}
+                                        <td className="px-4 py-3.5">
+                                            {order.items ? (
+                                                <div className="space-y-0.5">
+                                                    {order.items.slice(0, 2).map((item, idx) => (
+                                                        <div key={idx} className="flex items-baseline gap-1.5 text-sm truncate">
+                                                            <span className="text-slate-200 truncate">{item.product_name}</span>
+                                                            <span className="text-slate-500 shrink-0">×{item.quantity}</span>
+                                                        </div>
+                                                    ))}
+                                                    {order.items.length > 2 && (
+                                                        <span className="text-xs text-slate-500">+{order.items.length - 2} more</span>
                                                     )}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span>{order.product_name}</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 font-medium text-white">₹{order.total_amount || order.amount}</td>
-                                <td className="px-6 py-4">
-                                    <PaymentBadge status={order.payment_status} />
-                                </td>
-                                <td className="px-6 py-4">
-                                    <StatusBadge status={order.order_status} />
-                                </td>
-                                <td className="px-6 py-4 text-slate-400 text-sm">
-                                    {new Date(order.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                    <div className="relative inline-block text-left group/actions">
-                                        <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
-                                            <MoreHorizontal className="w-5 h-5" />
-                                        </button>
-                                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-xl opacity-0 invisible group-hover/actions:opacity-100 group-hover/actions:visible transition-all z-10">
-                                            <div className="px-2 py-2 space-y-1">
-                                                <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Order Status</div>
-                                                {ORDER_STATUSES.map((status) => (
-                                                    <button
-                                                        key={status}
-                                                        onClick={() => initiateStatusUpdate(order.order_id, status)}
-                                                        disabled={order.order_status === status}
-                                                        className={cn(
-                                                            "block w-full text-left px-4 py-1.5 text-sm rounded-lg",
-                                                            order.order_status === status
-                                                                ? "bg-indigo-500/10 text-indigo-400"
-                                                                : "text-slate-300 hover:bg-slate-800"
-                                                        )}
-                                                    >
-                                                        {status}
-                                                    </button>
-                                                ))}
-                                                <div className="border-t border-slate-800 pt-2">
-                                                    <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Payment Status</div>
-                                                    {PAYMENT_STATUSES.map((status) => (
-                                                        <button
-                                                            key={status}
-                                                            onClick={() => initiatePaymentStatusUpdate(order.order_id, status)}
-                                                            disabled={order.payment_status === status}
-                                                            className={cn(
-                                                                "block w-full text-left px-4 py-1.5 text-sm rounded-lg",
-                                                                order.payment_status === status
-                                                                    ? "bg-emerald-500/10 text-emerald-400"
-                                                                    : "text-slate-300 hover:bg-slate-800"
-                                                            )}
-                                                        >
-                                                            {status}
-                                                        </button>
-                                                    ))}
+                                            ) : (
+                                                <span className="text-sm text-slate-300">{order.product_name}</span>
+                                            )}
+                                        </td>
+
+                                        {/* Total */}
+                                        <td className="px-4 py-3.5">
+                                            <span className="font-semibold text-white text-sm">₹{order.total_amount || order.amount}</span>
+                                        </td>
+
+                                        {/* Payment */}
+                                        <td className="px-4 py-3.5">
+                                            <PaymentBadge status={order.payment_status} />
+                                        </td>
+
+                                        {/* Order Status */}
+                                        <td className="px-4 py-3.5">
+                                            <StatusBadge status={order.order_status} />
+                                        </td>
+
+                                        {/* Date */}
+                                        <td className="px-4 py-3.5">
+                                            <span className="text-xs text-slate-400 whitespace-nowrap">
+                                                {new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                            </span>
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <div className="relative inline-block group/actions">
+                                                <button className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+                                                    <MoreHorizontal className="w-4 h-4" />
+                                                </button>
+                                                <div className="absolute right-0 top-full mt-1 w-52 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/actions:opacity-100 group-hover/actions:visible transition-all z-30">
+                                                    <div className="p-2 space-y-0.5">
+                                                        <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Order Status</div>
+                                                        {ORDER_STATUSES.map((status) => (
+                                                            <button
+                                                                key={status}
+                                                                onClick={() => initiateStatusUpdate(order.order_id, status)}
+                                                                disabled={order.order_status === status}
+                                                                className={cn(
+                                                                    "block w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                                                    order.order_status === status
+                                                                        ? "bg-indigo-500/10 text-indigo-400 cursor-default"
+                                                                        : "text-slate-300 hover:bg-slate-800"
+                                                                )}
+                                                            >
+                                                                {status}
+                                                            </button>
+                                                        ))}
+                                                        <div className="border-t border-slate-800 my-1.5" />
+                                                        <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Status</div>
+                                                        {PAYMENT_STATUSES.map((status) => (
+                                                            <button
+                                                                key={status}
+                                                                onClick={() => initiatePaymentStatusUpdate(order.order_id, status)}
+                                                                disabled={order.payment_status === status}
+                                                                className={cn(
+                                                                    "block w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                                                    order.payment_status === status
+                                                                        ? "bg-emerald-500/10 text-emerald-400 cursor-default"
+                                                                        : "text-slate-300 hover:bg-slate-800"
+                                                                )}
+                                                            >
+                                                                {status}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </motion.tr>
-                        ))}
-                    </tbody>
-                </table>
+                                        </td>
+                                    </motion.tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </motion.div>
 
             {/* Message Preview Modal */}
+
             <AnimatePresence>
                 {messageModal.isOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

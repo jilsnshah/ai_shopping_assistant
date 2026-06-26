@@ -261,13 +261,17 @@ export default function Products() {
                                 className="glass-card rounded-2xl overflow-hidden group hover:shadow-glow transition-all duration-500"
                             >
                                 {/* Image Area */}
-                                <div className="h-48 bg-slate-800/50 relative overflow-hidden">
-                                    {product.image_url ? (
-                                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-600 font-bold text-5xl">
-                                            {product.title.charAt(0)}
-                                        </div>
+                                <div className="h-48 bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden flex items-center justify-center">
+                                    <div className="absolute inset-0 flex items-center justify-center text-slate-600 font-bold text-5xl z-0">
+                                        {product.title ? product.title.charAt(0).toUpperCase() : '?'}
+                                    </div>
+                                    {product.image_url && (
+                                        <img 
+                                            src={product.image_url} 
+                                            alt={product.title} 
+                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 z-10"
+                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                        />
                                     )}
                                     {/* Gradient overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />

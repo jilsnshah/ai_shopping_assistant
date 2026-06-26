@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { useToast } from '../hooks/useToast';
 import { database } from '../firebase/config';
 import { ref, onValue, off } from 'firebase/database';
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 
 export default function Customers() {
     const [sellerId, setSellerId] = useState(null);
@@ -18,6 +19,7 @@ export default function Customers() {
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const { success, error } = useToast();
+    const { firebaseReady } = useFirebaseAuth();
 
     useEffect(() => {
         const fetchSellerInfo = async () => {
@@ -36,42 +38,22 @@ export default function Customers() {
     useEffect(() => {
         if (!sellerId) return;
 
-        // Sanitize email
-        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
-        const sellerIdSafe = sanitizeEmail(sellerId);
+        const sanitizeEmail = (email) =>
+            email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
 
-        // Set up Firebase real-time listeners for customer data and orders
-        const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
-        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
-
-        let customersData = {};
-        let ordersData = [];
-
-        const processCustomerData = () => {
+        const buildCustomerList = (customersData, ordersData) => {
             const customerPhones = Object.keys(customersData || {});
-
-            if (customerPhones.length === 0) {
-                setCustomers([]);
-                setLoading(false);
-                return;
-            }
-
+            if (customerPhones.length === 0) { setCustomers([]); setLoading(false); return; }
             const customerList = customerPhones.map(phone => {
                 const phoneStr = String(phone);
-
-                // Get customer info from the new seller-specific path
                 const customerInfo = customersData[phoneStr] || {};
-
                 const customerOrders = ordersData.filter(order => String(order.buyer_phone) === phoneStr);
-
-                // Get name from customer data, then orders, then use phone
                 const name = customerInfo.name || (customerOrders.length > 0 ? customerOrders[0].buyer_name : null) || phoneStr;
-
                 return {
                     phone: phoneStr,
-                    name: name,
+                    name,
                     totalOrders: customerOrders.length,
-                    totalSpent: customerOrders.reduce((sum, order) => sum + (order.total_amount || order.amount || 0), 0),
+                    totalSpent: customerOrders.reduce((sum, o) => sum + (o.total_amount || o.amount || 0), 0),
                     lastOrderDate: customerOrders.length > 0
                         ? customerOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at
                         : customerInfo.created_at || null,
@@ -83,89 +65,61 @@ export default function Customers() {
                 if (!b.lastOrderDate) return -1;
                 return new Date(b.lastOrderDate) - new Date(a.lastOrderDate);
             });
-
-            console.log('Processed customer list:', customerList);
             setCustomers(customerList);
             setLoading(false);
         };
 
-        const unsubscribeCustomers = onValue(customersRef, (snapshot) => {
-            const data = snapshot.val();
-            // Handle both object format (new) and array format (old)
-            if (data) {
-                if (Array.isArray(data)) {
-                    // If it's an array of phone numbers (old format), convert to object
-                    customersData = {};
-                    data.forEach(phone => {
-                        customersData[String(phone)] = { phone_number: String(phone) };
-                    });
-                } else {
-                    // New format: object with phone as key
-                    customersData = data;
-                }
-            } else {
-                customersData = {};
+        // --- Real-time path ---
+        if (firebaseReady) {
+            const sellerIdSafe = sanitizeEmail(sellerId);
+            const customersRef = ref(database, `sellers/${sellerIdSafe}/customers`);
+            const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
+
+            let customersData = {};
+            let ordersData = [];
+
+            const handleCustomers = (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    customersData = Array.isArray(data)
+                        ? data.reduce((acc, phone) => { acc[String(phone)] = { phone_number: String(phone) }; return acc; }, {})
+                        : data;
+                } else { customersData = {}; }
+                buildCustomerList(customersData, ordersData);
+            };
+
+            const handleOrders = (snapshot) => {
+                const data = snapshot.val();
+                ordersData = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
+                buildCustomerList(customersData, ordersData);
+            };
+
+            const unsubCustomers = onValue(customersRef, handleCustomers, (e) => { console.error(e); setLoading(false); });
+            const unsubOrders = onValue(ordersRef, handleOrders, (e) => { console.error(e); setLoading(false); });
+
+            return () => { unsubCustomers(); unsubOrders(); };
+        }
+
+        // --- Fallback path ---
+        const fetchData = async () => {
+            try {
+                const [customersRes, ordersRes] = await Promise.all([
+                    api.get('/customers'),
+                    api.get('/orders')
+                ]);
+                buildCustomerList(customersRes.data.customers || {}, ordersRes.data.orders || []);
+            } catch (err) {
+                console.error('Error fetching customers data:', err);
+                setLoading(false);
             }
-            console.log('Customer data received:', Object.keys(customersData).length);
-            processCustomerData();
-        });
-
-        const unsubscribeOrders = onValue(ordersRef, (snapshot) => {
-            const data = snapshot.val();
-            ordersData = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
-            console.log('Orders received:', ordersData.length);
-            processCustomerData();
-        });
-
-        return () => {
-            unsubscribeCustomers();
-            unsubscribeOrders();
         };
-    }, [sellerId]);
+        fetchData();
+    }, [sellerId, firebaseReady]);
 
 
-    // Set up Firebase real-time listener for conversation
     useEffect(() => {
         if (!selectedCustomer || activeTab !== 'conversation') return;
-
-        setLoadingConversation(true);
-
-        // Create reference to conversation path
-        // Use sanitized sellerId from state or fallback if checking logic
-        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
-        const sellerIdSafe = sellerId ? sanitizeEmail(sellerId) : 'unknown_seller'; // Should ideally wait for sellerId
-        if (!sellerId) return;
-
-        const phoneStr = String(selectedCustomer.phone || '');
-        const buyerPhoneSafe = phoneStr.replace(/[.#$/\\[\\]]/g, '_');
-        const conversationRef = ref(database, `sellers/${sellerIdSafe}/conv_history/${buyerPhoneSafe}`);
-
-        // Set up real-time listener
-        const unsubscribe = onValue(conversationRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                // Convert Firebase object to array and sort by timestamp
-                const messages = Object.values(data)
-                    .sort((a, b) => a.timestamp - b.timestamp)
-                    .map(msg => ({
-                        role: msg.role,
-                        content: msg.content,
-                        timestamp: msg.timestamp
-                    }));
-                setConversation(messages);
-            } else {
-                setConversation([]);
-            }
-            setLoadingConversation(false);
-        }, (error) => {
-            console.error("Firebase listener error:", error);
-            setLoadingConversation(false);
-        });
-
-        // Cleanup listener on unmount or when dependencies change
-        return () => {
-            unsubscribe();
-        };
+        fetchConversation();
     }, [selectedCustomer, activeTab]);
 
     // Auto-scroll to bottom when conversation updates
@@ -237,7 +191,7 @@ export default function Customers() {
                 <p className="text-slate-400 mt-1">Overview of your customer base</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {loading ? (
                     <div className="text-white">Loading customers...</div>
                 ) : customers.map((customer) => (

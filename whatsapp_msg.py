@@ -15,9 +15,9 @@ import requests
 import json
 from datetime import datetime
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 from langchain.tools import tool
-from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from typing import Any
 
 # Import multi-agent system
@@ -67,8 +67,10 @@ def download_whatsapp_media(media_id: str, access_token: str) -> bytes:
         traceback.print_exc()
         return None
 
-# Initialize Flask app
-app = Flask(__name__)
+# Initialize Flask Blueprint
+from flask import Blueprint
+app = Blueprint('whatsapp_bp', __name__)
+whatsapp_bp = app
 
 # WhatsApp Business API Configuration
 WHATSAPP_API_URL = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v18.0")
@@ -156,27 +158,26 @@ You: [Use confirm_buyer_name tool with "John Smith"]
 
 Remember: Be conversational and friendly, but stay focused on getting the full name confirmed!"""
     
-    agent = create_agent(
-        llm,
+    agent = create_react_agent(
+        model=llm,
         tools=[confirm_buyer_name],
-        system_prompt=system_prompt,
-        checkpointer=InMemorySaver()
+        state_modifier=system_prompt
     )
     
     return agent
 
 
-def collect_buyer_name(phone_number: str, message: str, agent) -> dict:
+def collect_buyer_name(phone_number: str, message: str, agent, history: list = None) -> dict:
     """Use LLM agent to collect and confirm buyer name
     
     Returns:
         dict with 'confirmed': bool and 'name': str if confirmed, 'response': str for user
     """
     try:
-        response = agent.invoke(
-            {"messages": [{"role": "user", "content": message}]},
-            {"configurable": {"thread_id": f"name_collection_{phone_number}"}}
-        )
+        messages = history if history else []
+        messages.append({"role": "user", "content": message})
+        
+        response = agent.invoke({"messages": messages})
         
         # Extract response text
         messages = response.get("messages", [])
@@ -244,13 +245,23 @@ def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jil
         seller_id: Seller ID for conversation history
         whatsapp_creds: Optional dict with phone_number_id, access_token. Falls back to env vars.
     """
-    # Use provided credentials or fall back to env vars
+    # If creds not provided, try to fetch from Firebase
+    if not whatsapp_creds and seller_id:
+        try:
+            from firebase_db import get_whatsapp_credentials
+            fetched_creds = get_whatsapp_credentials(seller_id)
+            if fetched_creds:
+                whatsapp_creds = fetched_creds
+        except Exception as e:
+            print(f"❌ Error fetching whatsapp creds for {seller_id}: {e}")
+
+    # Use provided/fetched credentials or fall back to env vars
+    phone_number_id = WHATSAPP_PHONE_NUMBER_ID
+    access_token = WHATSAPP_ACCESS_TOKEN
+    
     if whatsapp_creds:
         phone_number_id = whatsapp_creds.get('phone_number_id', WHATSAPP_PHONE_NUMBER_ID)
         access_token = whatsapp_creds.get('access_token', WHATSAPP_ACCESS_TOKEN)
-    else:
-        phone_number_id = WHATSAPP_PHONE_NUMBER_ID
-        access_token = WHATSAPP_ACCESS_TOKEN
     
     url = f"{WHATSAPP_API_URL}/{phone_number_id}/messages"
     
@@ -285,7 +296,7 @@ def send_whatsapp_message(phone_number: str, message: str, seller_id: str = "jil
         return None
 
 
-def send_whatsapp_media(phone_number: str, media_file, caption: str = "", whatsapp_creds: dict = None):
+def send_whatsapp_media(phone_number: str, media_file, caption: str = "", seller_id: str = "jilsnshah_at_gmail_dot_com", whatsapp_creds: dict = None):
     """
     Upload and send media (PDF document) via WhatsApp Business API
     
@@ -293,18 +304,29 @@ def send_whatsapp_media(phone_number: str, media_file, caption: str = "", whatsa
         phone_number: Recipient phone number (with country code)
         media_file: File object or file path to upload
         caption: Optional caption text to accompany the media
+        seller_id: Seller ID to fetch credentials for if not provided
         whatsapp_creds: Optional dict with phone_number_id, access_token. Falls back to env vars.
     
     Returns:
         dict: Response from WhatsApp API or None if failed
     """
-    # Use provided credentials or fall back to env vars
+    # If creds not provided, try to fetch from Firebase
+    if not whatsapp_creds and seller_id:
+        try:
+            from firebase_db import get_whatsapp_credentials
+            fetched_creds = get_whatsapp_credentials(seller_id)
+            if fetched_creds:
+                whatsapp_creds = fetched_creds
+        except Exception as e:
+            print(f"❌ Error fetching whatsapp creds for {seller_id}: {e}")
+
+    # Use provided/fetched credentials or fall back to env vars
+    phone_number_id = WHATSAPP_PHONE_NUMBER_ID
+    access_token = WHATSAPP_ACCESS_TOKEN
+    
     if whatsapp_creds:
         phone_number_id = whatsapp_creds.get('phone_number_id', WHATSAPP_PHONE_NUMBER_ID)
         access_token = whatsapp_creds.get('access_token', WHATSAPP_ACCESS_TOKEN)
-    else:
-        phone_number_id = WHATSAPP_PHONE_NUMBER_ID
-        access_token = WHATSAPP_ACCESS_TOKEN
     
     try:
         # Step 1: Upload media to WhatsApp servers
@@ -366,7 +388,6 @@ def send_whatsapp_media(phone_number: str, media_file, caption: str = "", whatsa
         traceback.print_exc()
         return None
 
-
 # Name collection agents cache (phone_number -> agent)
 name_collection_agents = {}
 
@@ -378,6 +399,9 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
         # Import functions
         from tools import check_buyer_profile, create_buyer_profile
         from firebase_db import save_conversation_message, get_conversation_history
+
+        # Save incoming message to Firebase immediately so history is consistent
+        save_conversation_message(seller_id, phone_number, "user", message_text)
         
         # Check if buyer profile exists
         buyer_profile = check_buyer_profile(phone_number, seller_id)
@@ -386,14 +410,14 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
             # New buyer - use name collection agent
             print(f"🆕 New buyer detected: {phone_number}")
             
-            # Get or create name collection agent for this phone number
-            if phone_number not in name_collection_agents:
-                name_collection_agents[phone_number] = create_name_collection_agent()
+            # Get conversation history from Firebase
+            history = get_conversation_history(seller_id, phone_number, limit=10)
             
-            name_agent = name_collection_agents[phone_number]
+            # Create stateless name collection agent
+            name_agent = create_name_collection_agent()
             
             # Collect name using LLM agent
-            result = collect_buyer_name(phone_number, message_text, name_agent)
+            result = collect_buyer_name(phone_number, message_text, name_agent, history)
             
             if result.get('confirmed'):
                 # Name confirmed, create buyer profile
@@ -404,41 +428,37 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
                 print(f"📋 Create profile result: {create_result}")
                 
                 if create_result.get('success'):
-                    # Clean up name collection agent
-                    if phone_number in name_collection_agents:
-                        del name_collection_agents[phone_number]
-                    
-                    # Save incoming message to Firebase
-                    save_conversation_message(seller_id, phone_number, "user", message_text)
-                    
-                    # Get conversation history
-                    history = get_conversation_history(seller_id, phone_number, limit=10)
-                    
                     # Get main orchestrator and send welcome message
                     orchestrator = get_or_create_orchestrator()
                     welcome_response = orchestrator["process_message"](
                         "Hi, I'd like to see what products you have", 
                         phone_number,
+                        seller_id=seller_id,
                         buyer_name=confirmed_name,
                         history=history
                     )
                     
-                    return f"Thank you, {confirmed_name}! Your profile has been created. ✅\n\n{welcome_response}"
+                    final_response = f"Thank you, {confirmed_name}! Your profile has been created. ✅\n\n{welcome_response}"
+                    # Save AI response to Firebase
+                    save_conversation_message(seller_id, phone_number, "assistant", final_response)
+                    return final_response
                 else:
                     # Profile creation failed - log the error
                     error_msg = create_result.get('error', 'Unknown error')
                     print(f"❌ Profile creation failed: {error_msg}")
-                    return f"Sorry, I couldn't create your profile: {error_msg}. Please try again or contact support."
+                    final_response = f"Sorry, I couldn't create your profile: {error_msg}. Please try again or contact support."
+                    save_conversation_message(seller_id, phone_number, "assistant", final_response)
+                    return final_response
             else:
                 # Still collecting name, return agent's response
-                return result.get('response')
+                agent_response = result.get('response')
+                save_conversation_message(seller_id, phone_number, "assistant", agent_response)
+                return agent_response
         else:
             # Existing buyer - process message normally
             buyer_name = buyer_profile.get('name')
             print(f"👤 Existing buyer: {buyer_name} ({phone_number})")
             
-            # Save incoming message to Firebase
-            save_conversation_message(seller_id, phone_number, "user", message_text)
             
             # Get conversation history from Firebase
             history = get_conversation_history(seller_id, phone_number, limit=10)
@@ -450,6 +470,7 @@ def process_whatsapp_message(phone_number: str, message_text: str, seller_id: st
             agent_response = orchestrator["process_message"](
                 message_text, 
                 phone_number, 
+                seller_id=seller_id,
                 buyer_name=buyer_name,
                 history=history
             )
@@ -477,12 +498,24 @@ def verify_webhook():
     token = request.args.get('hub.verify_token')
     challenge = request.args.get('hub.challenge')
     
-    if mode == 'subscribe' and token == VERIFY_TOKEN:
-        print("✅ Webhook verified successfully!")
-        return challenge, 200
-    else:
-        print("❌ Webhook verification failed!")
-        return "Forbidden", 403
+    if mode == 'subscribe':
+        if token == VERIFY_TOKEN:
+            print("✅ Webhook verified successfully (global token)!")
+            return challenge, 200
+            
+        try:
+            from firebase_db import db
+            sellers_ref = db.reference('sellers')
+            sellers = sellers_ref.get() or {}
+            for seller_id, data in sellers.items():
+                if data.get('what_creds', {}).get('verify_token') == token:
+                    print(f"✅ Webhook verified successfully for seller {seller_id}!")
+                    return challenge, 200
+        except Exception as e:
+            print(f"❌ Error verifying token against sellers: {e}")
+            
+    print("❌ Webhook verification failed!")
+    return "Forbidden", 403
 
 
 @app.route('/webhook', methods=['POST'])
@@ -677,7 +710,10 @@ if __name__ == '__main__':
     print("\n🚀 Starting server...\n")
     
     # Run Flask app
-    app.run(
+    from flask import Flask
+    main_app = Flask(__name__)
+    main_app.register_blueprint(whatsapp_bp)
+    main_app.run(
         host='0.0.0.0',
         port=5001,
         debug=False

@@ -5,7 +5,7 @@ Memoryless agent - conversation history managed by Firebase
 
 from dotenv import load_dotenv
 load_dotenv()
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from datetime import datetime
 import google.generativeai as genai
@@ -64,28 +64,18 @@ Be concise but thorough. Focus on details that would be useful in a shopping con
         return "I received an image but couldn't analyze it clearly. Could you describe what you're looking for?"
 
 from tools import (
-    set_current_user,
+    get_tools_for_user,
     check_buyer_profile,
     create_buyer_profile,
-    update_my_name,
-    get_company_information,
-    browse_products,
-    get_product_details,
-    calculate_price,
-    add_product_to_cart,
-    view_shopping_cart,
-    modify_cart_item,
-    empty_shopping_cart,
-    create_order,
-    get_my_orders,
 )
 
 
 # ==================== AGENT SETUP ====================
-def create_shopping_agent(gemini_api_key):
-    """Create a memoryless agent with tools using create_agent"""
+def create_shopping_agent(gemini_api_key, phone_number, seller_id):
+    """Create a memoryless agent with tools using create_react_agent"""
     
     # Initialize LLM
+    from langchain_google_genai import ChatGoogleGenerativeAI
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=0.7,
@@ -93,19 +83,7 @@ def create_shopping_agent(gemini_api_key):
     )
     
     # Define tools list
-    tools = [
-        get_company_information,
-        browse_products,
-        get_product_details,
-        calculate_price,
-        add_product_to_cart,
-        view_shopping_cart,
-        modify_cart_item,
-        empty_shopping_cart,
-        create_order,
-        get_my_orders,
-        update_my_name,
-    ]
+    tools = get_tools_for_user(phone_number, seller_id)
     
     # System prompt for the agent
     system_prompt = """You are a friendly and helpful shopping assistant for Fresh Fruits Market, a company that sells fresh apples, oranges, and other fruits directly from local farms.
@@ -264,30 +242,29 @@ When a customer wants to order:
 Remember: You're chatting with customers via WhatsApp, so be conversational and helpful like a real store assistant! 🌟"""
     
     # Create agent without checkpointer (memoryless)
-    agent = create_agent(
-        llm,
+    agent = create_react_agent(
+        model=llm,
         tools=tools,
-        system_prompt=system_prompt
+        state_modifier=system_prompt
     )
     
     return agent
 
 
 # ==================== MESSAGE PROCESSING ====================
-def process_message(user_message, phone_number, agent, buyer_name=None, conversation_history=None):
+def process_message(user_message, phone_number, gemini_api_key, seller_id=None, buyer_name=None, conversation_history=None):
+    agent = create_shopping_agent(gemini_api_key, phone_number, seller_id)
     """Process user message through the agent
     
     Args:
         user_message: The user's message text
         phone_number: User's phone number
         agent: The agent instance
+        seller_id: The seller ID to use for tools
         buyer_name: Optional buyer name (used when greeting returning customers)
         conversation_history: List of previous messages from Firebase
     """
-    
-    # Set current user in tools.py
-    set_current_user(phone_number)
-    
+    # Tools are now stateless, no need to set current user
     print(f"\n{'='*60}")
     print(f"📱 From: {phone_number}")
     print(f"💬 Message: {user_message}")
@@ -360,17 +337,13 @@ def process_message(user_message, phone_number, agent, buyer_name=None, conversa
 
 
 def reset_conversation():
-    """Reset conversation state"""
-    set_current_user(None)
+    pass
 
 
 # ==================== PUBLIC API ====================
 def get_orchestrator(gemini_api_key):
     """Initialize and return the agent system"""
-    agent_executor = create_shopping_agent(gemini_api_key)
-    
     return {
-        "agent": agent_executor,
-        "process_message": lambda msg, phone, buyer_name=None, history=None: process_message(msg, phone, agent_executor, buyer_name, history),
+        "process_message": lambda msg, phone, seller_id=None, buyer_name=None, history=None: process_message(msg, phone, gemini_api_key, seller_id, buyer_name, history),
         "reset": reset_conversation
     }

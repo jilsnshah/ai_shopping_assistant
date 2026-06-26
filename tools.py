@@ -38,19 +38,7 @@ except ImportError:
 
 
 
-# ==================== GLOBAL STATE ====================
-current_user = {
-    "phone_number": None,
-}
-
-
-def set_current_user(phone_number):
-    """Set the current user's phone number"""
-    global current_user
-    current_user["phone_number"] = phone_number
-
-
-def load_sample_data(seller_id="jilsnshah_at_gmail_dot_com"):
+def load_sample_data(seller_id=None):
     """Load data from sellers database (Firebase or JSON fallback)"""
     if FIREBASE_ENABLED:
         return load_seller_data(seller_id)
@@ -101,7 +89,7 @@ if not FIREBASE_ENABLED:
             return False
 
 
-def get_company_info(seller_id="jilsnshah_at_gmail_dot_com"):
+def get_company_info(seller_id=None):
     """
     Get company name and description.
     
@@ -125,7 +113,7 @@ def get_company_info(seller_id="jilsnshah_at_gmail_dot_com"):
     }
 
 
-def get_product_catalog(seller_id="jilsnshah_at_gmail_dot_com"):
+def get_product_catalog(seller_id=None):
     """
     Get all products with their details including description and price.
     
@@ -153,7 +141,7 @@ def get_product_catalog(seller_id="jilsnshah_at_gmail_dot_com"):
     return products
 
 
-def get_product_by_id(product_id: int, seller_id="jilsnshah_at_gmail_dot_com"):
+def get_product_by_id(product_id: int, seller_id=None):
     """
     Get specific product details by product ID.
     
@@ -182,9 +170,8 @@ def get_product_by_id(product_id: int, seller_id="jilsnshah_at_gmail_dot_com"):
     return {"error": f"Product with ID {product_id} not found"}
 
 
-def check_buyer_profile(phone_number: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
-    """
-    Check if buyer profile exists by phone number for a specific seller.
+def check_buyer_profile(phone_number: str, seller_id: str = None):
+    """Check if a buyer profile exists by phone number for a specific seller.
     
     Args:
         phone_number (str): The phone number to check
@@ -227,9 +214,8 @@ def check_buyer_profile(phone_number: str, seller_id: str = "jilsnshah_at_gmail_
 
 
 
-def create_buyer_profile(phone_number: str, name: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
-    """
-    Create a new buyer profile for a specific seller.
+def create_buyer_profile(phone_number: str, name: str, seller_id: str = None):
+    """Create a new buyer profile for a specific seller.
     
     Args:
         phone_number (str): The buyer's phone number
@@ -302,9 +288,8 @@ def create_buyer_profile(phone_number: str, name: str, seller_id: str = "jilsnsh
 
 
 
-def update_buyer_name(phone_number: str, new_name: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
-    """
-    Update buyer's name in their profile for a specific seller.
+def update_buyer_name(phone_number: str, new_name: str, seller_id: str = None):
+    """Update buyer's name in their profile for a specific seller.
     
     Args:
         phone_number (str): The buyer's phone number
@@ -360,7 +345,7 @@ def update_buyer_name(phone_number: str, new_name: str, seller_id: str = "jilsns
 
 
 
-def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="jilsnshah_at_gmail_dot_com", selected_features: dict = None):
+def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id=None, selected_features: dict = None):
     """
     Add a product to buyer's cart or update quantity if already exists.
     
@@ -368,7 +353,7 @@ def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="ji
         phone_number (str): Buyer's phone number
         product_id (int): Product ID to add
         quantity (int): Quantity to add
-        seller_id (str): Seller ID to load product from (default: "jilsnshah_at_gmail_dot_com")
+        seller_id (str): Seller ID to load product from
         selected_features (dict): Optional dict of selected feature values (e.g., {"Size": "L", "Color": "Blue"})
         
     Returns:
@@ -508,7 +493,7 @@ def add_to_cart(phone_number: str, product_id: int, quantity: int, seller_id="ji
             return {"error": "Failed to save cart"}
 
 
-def get_cart(phone_number: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
+def get_cart(phone_number: str, seller_id: str = None):
     """
     Get buyer's current cart for a specific seller.
     
@@ -568,7 +553,7 @@ def get_cart(phone_number: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
 
 
 
-def update_cart_item(phone_number: str, product_id: int, quantity: int, seller_id: str = "jilsnshah_at_gmail_dot_com"):
+def update_cart_item(phone_number: str, product_id: int, quantity: int, seller_id: str = None):
     """
     Update quantity of a cart item or remove if quantity is 0.
     
@@ -647,7 +632,7 @@ def update_cart_item(phone_number: str, product_id: int, quantity: int, seller_i
             return {"error": "Failed to update cart"}
 
 
-def clear_cart(phone_number: str, seller_id: str = "jilsnshah_at_gmail_dot_com"):
+def clear_cart(phone_number: str, seller_id: str = None):
     """
     Clear all items from buyer's cart.
     
@@ -685,7 +670,7 @@ def clear_cart(phone_number: str, seller_id: str = "jilsnshah_at_gmail_dot_com")
 
 
 
-def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float, seller_id="jilsnshah_at_gmail_dot_com"):
+def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, delivery_lng: float, seller_id=None):
     """
     Place an order from buyer's cart (multi-item order).
     
@@ -694,7 +679,7 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
         delivery_address (str): Delivery address for the order
         delivery_lat (float): Latitude of delivery location
         delivery_lng (float): Longitude of delivery location
-        seller_id (str): Seller ID to place order with (default: "jilsnshah_at_gmail_dot_com")
+        seller_id (str): Seller ID to place order with
         
     Returns:
         dict: Order confirmation with order details
@@ -788,7 +773,7 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
         
         order = {
             "order_id": order_id,
-            "seller_id": int(seller_id) if seller_id.isdigit() else 1,
+            "seller_id": int(seller_id) if str(seller_id).isdigit() else 1,
             "buyer_name": buyer.get('name'),
             "buyer_phone": buyer_phone,
             "delivery_address": delivery_address,
@@ -840,14 +825,14 @@ def place_order(buyer_phone: str, delivery_address: str, delivery_lat: float, de
 
 
 
-def calculate_order_total(product_id: int, quantity: int, seller_id="jilsnshah_at_gmail_dot_com"):
+def calculate_order_total(product_id: int, quantity: int, seller_id=None):
     """
     Calculate the total cost for an order before placing it.
     
     Args:
         product_id (int): The ID of the product
         quantity (int): Number of items
-        seller_id (str): Seller ID to load product from (default: "jilsnshah_at_gmail_dot_com")
+        seller_id (str): Seller ID to load product from
         
     Returns:
         dict: Price breakdown including unit price, quantity, and total
@@ -881,328 +866,332 @@ def calculate_order_total(product_id: int, quantity: int, seller_id="jilsnshah_a
     }
 
 
-# ==================== LANGCHAIN TOOL WRAPPERS ====================
-@tool
-def check_buyer_profile_tool(phone_number: str) -> str:
-    """Check if a buyer profile exists by phone number.
-    Use this at the start of conversation to check if buyer is returning customer.
-    
-    Args:
-        phone_number: The buyer's phone number
-    """
-    result = check_buyer_profile(phone_number)
-    return str(result)
-
-
-@tool
-def create_buyer_profile_tool(phone_number: str, name: str) -> str:
-    """Create a new buyer profile with phone number and name.
-    This is automatically called by the system when needed.
-    
-    Args:
-        phone_number: The buyer's phone number
-        name: The buyer's full name
-    """
-    result = create_buyer_profile(phone_number, name)
-    return str(result)
-
-
-@tool
-def update_my_name(new_name: str) -> str:
-    """Update the buyer's name in their profile.
-    Use this when customer wants to change or update their name.
-    
-    Args:
-        new_name: The new name for the buyer
-    """
-    phone_number = current_user.get("phone_number")
-    result = update_buyer_name(phone_number, new_name)
-    return str(result)
-
-
-@tool
-def get_company_information(query: str) -> str:
-    """Get company information including name, description, contact details, and address.
-    Use this when user asks about the company or store.
-    
-    Args:
-        query: User's question about the company
-    """
-    info = get_company_info()
-    return str(info)
-
-
-@tool
-def browse_products(query: str) -> str:
-    """Get all available products with IDs, names, descriptions, and prices.
-    Use this when user wants to see what products are available or browse the catalog.
-    
-    Args:
-        query: User's request to see products
-    """
-    catalog = get_product_catalog(seller_id="jilsnshah_at_gmail_dot_com")
-    return str(catalog)
-
-
-@tool
-def get_product_details(product_id: str) -> str:
-    """Get detailed information about a specific product by its ID.
-    
-    Args:
-        product_id: The ID of the product (e.g., "1", "2", "3")
-    """
-    try:
-        product = get_product_by_id(int(product_id))
-        return str(product)
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-
-@tool
-def calculate_price(product_id: str, quantity: str) -> str:
-    """Calculate total price for a product and quantity.
-    
-    Args:
-        product_id: The ID of the product
-        quantity: The quantity to calculate price for
-    """
-    try:
-        total = calculate_order_total(int(product_id), int(quantity))
-        return str(total)
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-
-@tool
-def add_product_to_cart(product_id: str, quantity: str, selected_features: str = "") -> str:
-    """Add a product to the shopping cart. If product already exists in cart with same features, quantity will be updated.
-    
-    Args:
-        product_id: The ID of the product to add (e.g., "1", "2", "3")
-        quantity: How many units to add (e.g., "2", "5")
-        selected_features: Optional JSON string of feature selections (e.g., '{"Size": "L", "Color": "Blue"}')
-    """
-    try:
-        import json
-        phone_number = current_user.get("phone_number")
+def get_tools_for_user(phone_number: str, seller_id: str):
+    # ==================== LANGCHAIN TOOL WRAPPERS ====================
+    @tool
+    def check_buyer_profile_tool(phone_number: str) -> str:
+        """Check if a buyer profile exists by phone number.
+        Use this at the start of conversation to check if buyer is returning customer.
         
-        # Parse selected_features if provided
-        features_dict = None
-        if selected_features and selected_features.strip():
-            try:
-                features_dict = json.loads(selected_features)
-            except json.JSONDecodeError:
-                # Try parsing as simple key:value pairs
-                features_dict = {}
-                for pair in selected_features.split(","):
-                    if ":" in pair:
-                        key, value = pair.split(":", 1)
-                        features_dict[key.strip()] = value.strip()
-        
-        result = add_to_cart(phone_number, int(product_id), int(quantity), seller_id="jilsnshah_at_gmail_dot_com", selected_features=features_dict)
+        Args:
+            phone_number: The buyer's phone number
+        """
+        result = check_buyer_profile(phone_number)
         return str(result)
-    except Exception as e:
-        return f"Error: {str(e)}"
 
 
-@tool
-def view_shopping_cart(query: str) -> str:
-    """View all items in the shopping cart with quantities, prices, and total amount.
-    Use this when user wants to see what's in their cart or review cart before checkout.
-    
-    Args:
-        query: User's request to view cart
-    """
-    try:
-        phone_number = current_user.get("phone_number")
-        result = get_cart(phone_number)
+    @tool
+    def create_buyer_profile_tool(phone_number: str, name: str) -> str:
+        """Create a new buyer profile with phone number and name.
+        This is automatically called by the system when needed.
+        
+        Args:
+            phone_number: The buyer's phone number
+            name: The buyer's full name
+        """
+        result = create_buyer_profile(phone_number, name)
         return str(result)
-    except Exception as e:
-        return f"Error: {str(e)}"
 
 
-@tool
-def modify_cart_item(product_id: str, quantity: str) -> str:
-    """Update quantity of a product in cart or remove it (set quantity to 0 to remove).
-    
-    Args:
-        product_id: The ID of the product in cart
-        quantity: New quantity (use "0" to remove item from cart)
-    """
-    try:
-        phone_number = current_user.get("phone_number")
-        result = update_cart_item(phone_number, int(product_id), int(quantity))
+    @tool
+    def update_my_name(new_name: str) -> str:
+        """Update the buyer's name in their profile.
+        Use this when customer wants to change or update their name.
+        
+        Args:
+            new_name: The new name for the buyer
+        """
+        
+        result = update_buyer_name(phone_number, new_name)
         return str(result)
-    except Exception as e:
-        return f"Error: {str(e)}"
 
 
-@tool
-def empty_shopping_cart(query: str) -> str:
-    """Clear all items from the shopping cart.
-    Use this when user wants to start over or empty their cart.
-    
-    Args:
-        query: User's request to clear cart
-    """
-    try:
-        phone_number = current_user.get("phone_number")
-        result = clear_cart(phone_number)
-        return str(result)
-    except Exception as e:
-        return f"Error: {str(e)}"
+    @tool
+    def get_company_information(query: str) -> str:
+        """Get company information including name, description, contact details, and address.
+        Use this when user asks about the company or store.
+        
+        Args:
+            query: User's question about the company
+        """
+        info = get_company_info(seller_id=seller_id)
+        return str(info)
 
 
-@tool
-def create_order(delivery_address: str, delivery_latitude: str, delivery_longitude: str) -> str:
-    """Place an order with all items from shopping cart. Cart will be automatically cleared after successful order.
-    IMPORTANT: User must have items in cart before placing order.
-    
-    Args:
-        delivery_address: Complete delivery address
-        delivery_latitude: Latitude of delivery location (e.g., "23.0225")
-        delivery_longitude: Longitude of delivery location (e.g., "72.5714")
-    """
-    try:
-        phone_number = current_user.get("phone_number")
+    @tool
+    def browse_products(query: str) -> str:
+        """Get all available products with IDs, names, descriptions, and prices.
+        Use this when user wants to see what products are available or browse the catalog.
         
-        # Convert lat/lng to float
-        lat = float(delivery_latitude)
-        lng = float(delivery_longitude)
-        
-        result = place_order(phone_number, delivery_address, lat, lng, seller_id="jilsnshah_at_gmail_dot_com")
-        return str(result)
-    except ValueError as e:
-        return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."
-    except Exception as e:
-        return f"Error: {str(e)}"
+        Args:
+            query: User's request to see products
+        """
+        catalog = get_product_catalog(seller_id=seller_id)
+        return str(catalog)
 
 
-@tool
-def get_my_orders(query: str) -> str:
-    """Get order history and status for the current user.
-    Use this when user asks about their orders, order status, or order history.
-    
-    Args:
-        query: User's question about orders
-    """
-    phone_number = current_user.get("phone_number")
-    seller_id = "jilsnshah_at_gmail_dot_com"  # Default seller
-    
-    if FIREBASE_ENABLED:
-        # Use new customer path
-        customer = get_customer(seller_id, phone_number)
-        if not customer:
-            return "No orders found for this number. Would you like to place your first order?"
+    @tool
+    def get_product_details(product_id: str) -> str:
+        """Get detailed information about a specific product by its ID.
         
-        buyer_name = customer.get('name', 'there')
-        order_refs = customer.get('orders', [])
-    else:
-        # Fallback to old method
-        buyers_data = load_buyers_data()
-        if phone_number not in buyers_data.get('buyers', {}):
-            return "No orders found for this number. Would you like to place your first order?"
+        Args:
+            product_id: The ID of the product (e.g., "1", "2", "3")
+        """
+        try:
+            product = get_product_by_id(int(product_id), seller_id=seller_id)
+            return str(product)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def calculate_price(product_id: str, quantity: str) -> str:
+        """Calculate total price for a product and quantity.
         
-        buyer = buyers_data['buyers'][phone_number]
-        buyer_name = buyer.get('name', 'there')
-        order_refs = buyer.get('orders', [])
-    
-    if not order_refs:
-        return f"Hi {buyer_name}! You haven't placed any orders yet."
-    
-    # Fetch complete order data from sellers using references
-    orders = []
-    for ref in order_refs:
-        if ref is None:
-            continue
-        # Handle both old format (full order) and new format (reference only)
-        if isinstance(ref, dict) and 'seller_id' in ref and 'order_id' in ref and 'buyer_phone' not in ref:
-            # New reference format - fetch from seller
-            ref_seller_id = ref.get('seller_id')
-            order_id = ref.get('order_id')
-            seller_data = load_sample_data(ref_seller_id)
-            for order in seller_data.get('orders', []):
-                if order and (order.get('order_id') == order_id or order.get('id') == order_id):
-                    orders.append(order)
-                    break
-        elif isinstance(ref, dict):
-            # Old format - full order object (backward compatibility)
-            orders.append(ref)
-    
-    if not orders:
-        return f"Hi {buyer_name}! You haven't placed any orders yet."
-    
-    orders_summary = f"Buyer: {buyer_name}\nTotal Orders: {len(orders)}\n\n"
-    for idx, order in enumerate(orders, 1):
-        order_id = order.get('order_id', order.get('id'))
-        total_amount = order.get('total_amount', order.get('amount'))
+        Args:
+            product_id: The ID of the product
+            quantity: The quantity to calculate price for
+        """
+        try:
+            total = calculate_order_total(int(product_id), int(quantity), seller_id=seller_id)
+            return str(total)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def add_product_to_cart(product_id: str, quantity: str, selected_features: str = "") -> str:
+        """Add a product to the shopping cart. If product already exists in cart with same features, quantity will be updated.
         
-        orders_summary += f"Order {idx}:\n"
-        orders_summary += f"- Order ID: {order_id}\n"
-        orders_summary += f"- Date: {order.get('created_at')}\n"
+        Args:
+            product_id: The ID of the product to add (e.g., "1", "2", "3")
+            quantity: How many units to add (e.g., "2", "5")
+            selected_features: Optional JSON string of feature selections (e.g., '{"Size": "L", "Color": "Blue"}')
+        """
+        try:
+            import json
+            
+            
+            # Parse selected_features if provided
+            features_dict = None
+            if selected_features and selected_features.strip():
+                try:
+                    features_dict = json.loads(selected_features)
+                except json.JSONDecodeError:
+                    # Try parsing as simple key:value pairs
+                    features_dict = {}
+                    for pair in selected_features.split(","):
+                        if ":" in pair:
+                            key, value = pair.split(":", 1)
+                            features_dict[key.strip()] = value.strip()
+            
+            result = add_to_cart(phone_number, int(product_id), int(quantity), seller_id=seller_id, selected_features=features_dict)
+            return str(result)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def view_shopping_cart(query: str) -> str:
+        """View all items in the shopping cart with quantities, prices, and total amount.
+        Use this when user wants to see what's in their cart or review cart before checkout.
         
-        # Handle multi-item orders
-        if 'items' in order and order['items']:
-            orders_summary += f"- Items:\n"
-            for item in order['items']:
-                orders_summary += f"  * {item['product_name']} x{item['quantity']} - ₹{item['subtotal']}\n"
-            orders_summary += f"- Total: ₹{total_amount}\n"
+        Args:
+            query: User's request to view cart
+        """
+        try:
+            
+            result = get_cart(phone_number, seller_id=seller_id)
+            return str(result)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def modify_cart_item(product_id: str, quantity: str) -> str:
+        """Update quantity of a product in cart or remove it (set quantity to 0 to remove).
+        
+        Args:
+            product_id: The ID of the product in cart
+            quantity: New quantity (use "0" to remove item from cart)
+        """
+        try:
+            
+            result = update_cart_item(phone_number, int(product_id), int(quantity), seller_id=seller_id)
+            return str(result)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def empty_shopping_cart(query: str) -> str:
+        """Clear all items from the shopping cart.
+        Use this when user wants to start over or empty their cart.
+        
+        Args:
+            query: User's request to clear cart
+        """
+        try:
+            
+            result = clear_cart(phone_number, seller_id=seller_id)
+            return str(result)
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def create_order(delivery_address: str, delivery_latitude: str, delivery_longitude: str) -> str:
+        """Place an order with all items from shopping cart. Cart will be automatically cleared after successful order.
+        IMPORTANT: User must have items in cart before placing order.
+        
+        Args:
+            delivery_address: Complete delivery address
+            delivery_latitude: Latitude of delivery location (e.g., "23.0225")
+            delivery_longitude: Longitude of delivery location (e.g., "72.5714")
+        """
+        try:
+            
+            
+            # Convert lat/lng to float
+            lat = float(delivery_latitude)
+            lng = float(delivery_longitude)
+            
+            result = place_order(phone_number, delivery_address, lat, lng, seller_id=seller_id)
+            return str(result)
+        except ValueError as e:
+            return f"Error: Invalid coordinates format. Please provide valid latitude and longitude numbers."
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+
+    @tool
+    def get_my_orders(query: str) -> str:
+        """Get order history and status for the current user.
+        Use this when user asks about their orders, order status, or order history.
+        
+        Args:
+            query: User's question about orders
+        """
+        
+          # Default seller
+        
+        if FIREBASE_ENABLED:
+            # Use new customer path
+            customer = get_customer(seller_id, phone_number)
+            if not customer:
+                return "No orders found for this number. Would you like to place your first order?"
+            
+            buyer_name = customer.get('name', 'there')
+            order_refs = customer.get('orders', [])
         else:
-            # Old single-item structure fallback
-            orders_summary += f"- Product: {order.get('product_name')}\n"
-            orders_summary += f"- Quantity: {order.get('quantity')}\n"
-            orders_summary += f"- Total: ₹{total_amount}\n"
+            # Fallback to old method
+            buyers_data = load_buyers_data()
+            if phone_number not in buyers_data.get('buyers', {}):
+                return "No orders found for this number. Would you like to place your first order?"
+            
+            buyer = buyers_data['buyers'][phone_number]
+            buyer_name = buyer.get('name', 'there')
+            order_refs = buyer.get('orders', [])
         
-        orders_summary += f"- Status: {order.get('order_status', 'Pending')}\n"
-        orders_summary += f"- Payment: {order.get('payment_status', 'Pending')}\n"
-        orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"
-    
-    
-    return orders_summary
+        if not order_refs:
+            return f"Hi {buyer_name}! You haven't placed any orders yet."
+        
+        # Fetch complete order data from sellers using references
+        orders = []
+        for ref in order_refs:
+            if ref is None:
+                continue
+            # Handle both old format (full order) and new format (reference only)
+            if isinstance(ref, dict) and 'seller_id' in ref and 'order_id' in ref and 'buyer_phone' not in ref:
+                # New reference format - fetch from seller
+                ref_seller_id = ref.get('seller_id')
+                order_id = ref.get('order_id')
+                seller_data = load_sample_data(ref_seller_id)
+                for order in seller_data.get('orders', []):
+                    if order and (order.get('order_id') == order_id or order.get('id') == order_id):
+                        orders.append(order)
+                        break
+            elif isinstance(ref, dict):
+                # Old format - full order object (backward compatibility)
+                orders.append(ref)
+        
+        if not orders:
+            return f"Hi {buyer_name}! You haven't placed any orders yet."
+        
+        orders_summary = f"Buyer: {buyer_name}\nTotal Orders: {len(orders)}\n\n"
+        for idx, order in enumerate(orders, 1):
+            order_id = order.get('order_id', order.get('id'))
+            total_amount = order.get('total_amount', order.get('amount'))
+            
+            orders_summary += f"Order {idx}:\n"
+            orders_summary += f"- Order ID: {order_id}\n"
+            orders_summary += f"- Date: {order.get('created_at')}\n"
+            
+            # Handle multi-item orders
+            if 'items' in order and order['items']:
+                orders_summary += f"- Items:\n"
+                for item in order['items']:
+                    orders_summary += f"  * {item['product_name']} x{item['quantity']} - ₹{item['subtotal']}\n"
+                orders_summary += f"- Total: ₹{total_amount}\n"
+            else:
+                # Old single-item structure fallback
+                orders_summary += f"- Product: {order.get('product_name')}\n"
+                orders_summary += f"- Quantity: {order.get('quantity')}\n"
+                orders_summary += f"- Total: ₹{total_amount}\n"
+            
+            orders_summary += f"- Status: {order.get('order_status', 'Pending')}\n"
+            orders_summary += f"- Payment: {order.get('payment_status', 'Pending')}\n"
+            orders_summary += f"- Delivery: {order.get('delivery_address')}\n\n"
+        
+        
+        return orders_summary
 
 
-@tool
-def request_cancellation(order_id: str) -> str:
-    """Request cancellation for an order. Use this when user wants to cancel their order.
-    This will notify the seller about the cancellation request.
-    
-    Args:
-        order_id: The order ID to cancel (e.g., "1", "12", "5")
-    """
-    try:
-        if not FIREBASE_ENABLED:
-            return "Error: Cancellation feature requires Firebase connection"
+    @tool
+    def request_cancellation(order_id: str) -> str:
+        """Request cancellation for an order. Use this when user wants to cancel their order.
+        This will notify the seller about the cancellation request.
         
-        # Convert order_id to int
-        order_id_int = int(order_id)
-        
-        # Request cancellation
-        result = request_order_cancellation(order_id_int)
-        
-        if result.get('success'):
-            return str({
-                'success': True,
-                'message': result.get('message'),
-                'order_id': order_id_int
-            })
-        else:
+        Args:
+            order_id: The order ID to cancel (e.g., "1", "12", "5")
+        """
+        try:
+            if not FIREBASE_ENABLED:
+                return "Error: Cancellation feature requires Firebase connection"
+            
+            # Convert order_id to int
+            order_id_int = int(order_id)
+            
+            # Request cancellation
+            result = request_order_cancellation(order_id_int)
+            
+            if result.get('success'):
+                return str({
+                    'success': True,
+                    'message': result.get('message'),
+                    'order_id': order_id_int
+                })
+            else:
+                return str({
+                    'success': False,
+                    'error': result.get('message')
+                })
+                
+        except ValueError:
             return str({
                 'success': False,
-                'error': result.get('message')
+                'error': 'Invalid order ID format. Please provide a valid order number.'
             })
-            
-    except ValueError:
-        return str({
-            'success': False,
-            'error': 'Invalid order ID format. Please provide a valid order number.'
-        })
-    except Exception as e:
-        return str({
-            'success': False,
-            'error': f'Error processing cancellation request: {str(e)}'
-        })
+        except Exception as e:
+            return str({
+                'success': False,
+                'error': f'Error processing cancellation request: {str(e)}'
+            })
 
 
+
+
+    return [check_buyer_profile_tool, create_buyer_profile_tool, update_my_name, get_company_information, browse_products, get_product_details, calculate_price, add_product_to_cart, view_shopping_cart, modify_cart_item, empty_shopping_cart, create_order, get_my_orders, request_cancellation]
 # ==================== TEST FUNCTIONS ====================
 if __name__ == "__main__":
     print("=== Testing Tool Functions ===\n")

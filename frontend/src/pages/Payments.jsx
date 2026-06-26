@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import { cn } from '../lib/utils';
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, gradient, delay = 0 }) => (
     <motion.div
@@ -36,6 +37,7 @@ export default function Payments() {
         pending: 0,
         total: 0
     });
+    const { firebaseReady } = useFirebaseAuth();
 
     useEffect(() => {
         const fetchSellerInfo = async () => {
@@ -54,39 +56,49 @@ export default function Payments() {
     useEffect(() => {
         if (!sellerId) return;
 
-        // Sanitize email
-        const sanitizeEmail = (email) => email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
-        const sellerIdSafe = sanitizeEmail(sellerId);
+        const sanitizeEmail = (email) =>
+            email.replace(/\./g, '_dot_').replace(/@/g, '_at_').replace(/\//g, '_slash_');
 
-        // Set up Firebase real-time listener for orders (payment data)
-        const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
-
-        const unsubscribe = onValue(ordersRef, (snapshot) => {
-            const data = snapshot.val();
-            // Firebase returns arrays as objects with numeric keys, convert back to array
-            const orders = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
-
+        const computeStats = (orders) => {
             const collected = orders
                 .filter(o => o.payment_status === 'Completed')
                 .reduce((acc, o) => acc + (o.total_amount || 0), 0);
-
             const pending = orders
                 .filter(o => ['Pending', 'Requested', 'Verified'].includes(o.payment_status))
                 .reduce((acc, o) => acc + (o.total_amount || 0), 0);
+            setStats({ collected, pending, total: collected + pending });
+            setLoading(false);
+        };
 
-            setStats({
-                collected,
-                pending,
-                total: collected + pending
+        // --- Real-time path ---
+        if (firebaseReady) {
+            const sellerIdSafe = sanitizeEmail(sellerId);
+            const ordersRef = ref(database, `sellers/${sellerIdSafe}/orders`);
+
+            const unsubscribe = onValue(ordersRef, (snapshot) => {
+                const data = snapshot.val();
+                const orders = data ? (Array.isArray(data) ? data : Object.values(data)).filter(Boolean) : [];
+                computeStats(orders);
+            }, (error) => {
+                console.error('Firebase payments error:', error);
+                setLoading(false);
             });
-            setLoading(false);
-        }, (error) => {
-            console.error("Firebase listener error:", error);
-            setLoading(false);
-        });
 
-        return () => unsubscribe();
-    }, [sellerId]);
+            return () => unsubscribe();
+        }
+
+        // --- Fallback path ---
+        const fetchPayments = async () => {
+            try {
+                const response = await api.get('/orders');
+                computeStats(response.data.orders || []);
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+                setLoading(false);
+            }
+        };
+        fetchPayments();
+    }, [sellerId, firebaseReady]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
