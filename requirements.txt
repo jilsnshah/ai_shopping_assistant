@@ -1,11 +1,11 @@
 Flask==3.0.0
 Werkzeug==3.0.1
 firebase-admin==6.5.0
-cloud-sql-python-connector[pg8000]
-sqlalchemy
-langgraph-checkpoint-postgres
 python-dotenv
 google-auth
 requests
 razorpay
-
+langchain
+langchain-google-genai
+langgraph
+google-generativeai

@@ -17,7 +17,7 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
 - **AI Shopping Assistant**: Natural language shopping through WhatsApp powered by Google Gemini 2.0 Flash
 - **Payment Integration**: Razorpay payment links with automated notifications
 - **Real-time Database**: Firebase Realtime Database with automatic synchronization
-- **Persistent Memory**: PostgreSQL-backed conversation history for personalized experiences
+- **Persistent Memory**: Firebase-backed conversation history for personalized experiences
 - **Google OAuth**: Secure authentication with Google Sign-In
 
 ## 📋 Table of Contents
@@ -122,8 +122,7 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
 
 ### 🔐 Security & Data
 
-- **Firebase Realtime Database**: Secure cloud data storage
-- **PostgreSQL Memory**: Persistent conversation checkpoints
+- **Firebase Realtime Database**: Secure cloud data storage for all persistence
 - **Google OAuth 2.0**: Industry-standard authentication
 - **Session Management**: Secure seller sessions with Flask
 - **Email-based Isolation**: Each seller's data is completely separate
@@ -144,7 +143,6 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
 ### Backend
 - **Flask**: Python web framework
 - **Firebase Admin SDK**: Realtime Database integration
-- **Google Cloud SQL**: PostgreSQL database
 - **LangGraph**: AI agent framework
 - **LangChain**: LLM orchestration
 - **Google Gemini 2.0 Flash**: Language model
@@ -152,9 +150,8 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
 - **WhatsApp Business API**: Messaging integration
 
 ### Infrastructure
-- **Firebase Realtime Database**: NoSQL data storage
-- **PostgreSQL (Cloud SQL)**: Relational database for memory
-- **Cloud Proxy**: Secure database connections
+- **Firebase Realtime Database**: NoSQL data storage (sellers, products, orders, conversation history)
+- **Firebase Storage**: Product image hosting
 - **Environment Variables**: Configuration management
 
 ## 🏗️ Architecture
@@ -182,12 +179,12 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
          │                            │
          ▼                            ▼
 ┌─────────────────────┐    ┌─────────────────────────┐
-│  Firebase Realtime  │    │  PostgreSQL (Cloud SQL) │
-│    - Sellers Data   │    │  - Conversation Memory  │
-│    - Products       │    │  - Checkpoints          │
-│    - Orders         │    │  - User Profiles        │
-│    - Cancellations  │    │                         │
-└─────────────────────┘    └─────────────────────────┘
+│      Firebase Realtime Database                     │
+│    - Sellers Data       - Conversation History      │
+│    - Products           - Customer Profiles         │
+│    - Orders             - WhatsApp Credentials      │
+│    - Cancellations      - Razorpay Credentials      │
+└─────────────────────────────────────────────────────┘
 ```
 
 ## 🚀 Installation
@@ -197,7 +194,6 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
 - **Python 3.9+**: [Download](https://www.python.org/downloads/)
 - **Node.js 18+**: [Download](https://nodejs.org/)
 - **Firebase Account**: [Create](https://console.firebase.google.com/)
-- **Google Cloud Account**: [Sign up](https://cloud.google.com/)
 - **Razorpay Account**: [Register](https://razorpay.com/) (for payments)
 - **Meta WhatsApp Business**: [Setup](https://business.whatsapp.com/) (for messaging)
 
@@ -234,25 +230,7 @@ AI Shopping Assistant Platform is a full-stack e-commerce solution that bridges 
    - Download service account key
    - Save as `firebase-credentials.json` in project root
 
-5. **Google Cloud SQL Setup**
-   ```bash
-   # Create Cloud SQL instance
-   gcloud sql instances create langgraph-db \
-     --database-version=POSTGRES_15 \
-     --tier=db-f1-micro \
-     --region=us-central1
-   
-   # Create database
-   gcloud sql databases create langgraph \
-     --instance=langgraph-db
-   
-   # Set password
-   gcloud sql users set-password postgres \
-     --instance=langgraph-db \
-     --password=your-secure-password
-   ```
-
-6. **Run Application**
+5. **Run Application**
    ```bash
    # Terminal 1: Backend
    python app.py
@@ -277,20 +255,13 @@ GEMINI_API_KEY=your_gemini_api_key
 # Firebase
 FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 
-# PostgreSQL (Cloud SQL)
-PGUSER=postgres
-PGPASSWORD=your_db_password
-PGDATABASE=langgraph
-PGHOST=your-instance-connection-name
-PGPORT=5432
-
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 
 # WhatsApp Business API
-WHATSAPP_TOKEN=your_whatsapp_access_token
+WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
 WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WEBHOOK_VERIFY_TOKEN=your_custom_verify_token
+VERIFY_TOKEN=your_custom_verify_token
 
 # Razorpay
 RAZORPAY_KEY_ID=rzp_test_xxxxx
