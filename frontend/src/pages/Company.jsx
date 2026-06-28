@@ -5,6 +5,21 @@ import api from '../api/axios';
 import { ToastContainer } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
+const InputGroup = ({ label, icon: Icon, name, type = "text", fullWidth = false, formData, onChange }) => (
+    <div className={fullWidth ? "col-span-2" : ""}>
+        <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
+            <Icon className="w-4 h-4" /> {label}
+        </label>
+        <input
+            type={type}
+            name={name}
+            value={formData[name] || ''}
+            onChange={onChange}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+        />
+    </div>
+);
+
 export default function Company() {
     const [formData, setFormData] = useState({
         company_name: '',
@@ -55,20 +70,6 @@ export default function Company() {
         }
     };
 
-    const InputGroup = ({ label, icon: Icon, name, type = "text", fullWidth = false }) => (
-        <div className={fullWidth ? "col-span-2" : ""}>
-            <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
-                <Icon className="w-4 h-4" /> {label}
-            </label>
-            <input
-                type={type}
-                name={name}
-                value={formData[name] || ''}
-                onChange={handleChange}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-            />
-        </div>
-    );
 
     if (loading) return (
         <div className="flex items-center justify-center h-64">
@@ -99,9 +100,9 @@ export default function Company() {
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Basic Information</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="Company Name" icon={Building2} name="company_name" fullWidth />
-                        <InputGroup label="Email Address" icon={Mail} name="email" type="email" />
-                        <InputGroup label="Phone Number" icon={Phone} name="phone" type="tel" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Company Name" icon={Building2} name="company_name" fullWidth />
+                        <InputGroup formData={formData} onChange={handleChange} label="Email Address" icon={Mail} name="email" type="email" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Phone Number" icon={Phone} name="phone" type="tel" />
                         <div className="col-span-2">
                             <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
                             <textarea
@@ -119,11 +120,11 @@ export default function Company() {
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Location</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="Address Line" icon={MapPin} name="address" fullWidth />
-                        <InputGroup label="City" icon={MapPin} name="city" />
-                        <InputGroup label="State" icon={MapPin} name="state" />
-                        <InputGroup label="Pincode" icon={MapPin} name="pincode" />
-                        <InputGroup label="Country" icon={MapPin} name="country" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Address Line" icon={MapPin} name="address" fullWidth />
+                        <InputGroup formData={formData} onChange={handleChange} label="City" icon={MapPin} name="city" />
+                        <InputGroup formData={formData} onChange={handleChange} label="State" icon={MapPin} name="state" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Pincode" icon={MapPin} name="pincode" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Country" icon={MapPin} name="country" />
                     </div>
                 </div>
 
@@ -131,7 +132,7 @@ export default function Company() {
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Payment Settings</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="UPI ID" icon={CreditCard} name="upi_id" fullWidth />
+                        <InputGroup formData={formData} onChange={handleChange} label="UPI ID" icon={CreditCard} name="upi_id" fullWidth />
                     </div>
                 </div>
 
@@ -139,8 +140,8 @@ export default function Company() {
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Social Links</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="Google Business Link" icon={CreditCard} name="google_business_link" type="url" />
-                        <InputGroup label="Instagram Link" icon={CreditCard} name="instagram_link" type="url" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Google Business Link" icon={CreditCard} name="google_business_link" type="url" />
+                        <InputGroup formData={formData} onChange={handleChange} label="Instagram Link" icon={CreditCard} name="instagram_link" type="url" />
                     </div>
                 </div>
 
