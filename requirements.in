@@ -1,0 +1,15 @@
+Flask
+Werkzeug
+firebase-admin
+python-dotenv
+google-auth
+requests
+razorpay
+langchain
+langchain-google-genai
+langgraph
+google-generativeai
+pytest
+pytest-cov
+flask-cors
+gunicorn
