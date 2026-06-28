@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 CORS(app, supports_credentials=True)
 app.register_blueprint(whatsapp_bp)
-app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')  # Use env variable in production
 app.config.update(
     SESSION_COOKIE_SAMESITE='None',
     SESSION_COOKIE_SECURE=True,
