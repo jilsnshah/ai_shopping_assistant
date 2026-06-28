@@ -15,6 +15,10 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.register_blueprint(whatsapp_bp)
 app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
+app.config.update(
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True,
+)
 
 def get_seller_state():
     seller_id = session.get('seller_id')
