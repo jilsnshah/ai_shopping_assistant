@@ -11,3 +11,5 @@ langgraph
 google-generativeai
 pytest==8.0.0
 pytest-cov==4.1.0
+flask-cors==4.0.0
+gunicorn==22.0.0

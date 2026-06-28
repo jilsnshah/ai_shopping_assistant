@@ -1,7 +1,7 @@
-
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, jsonify, session
+from flask_cors import CORS
 import os
 import json
 from datetime import datetime
@@ -12,6 +12,7 @@ from google.auth.transport import requests as google_requests
 from razorpay_helper import create_payment_link, handle_payment_success, verify_webhook_signature
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 app.register_blueprint(whatsapp_bp)
 app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
 
