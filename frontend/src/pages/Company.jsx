@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Building2, MapPin, Phone, Mail, CreditCard } from 'lucide-react';
+import { Save, Building2, MapPin, Phone, Mail, CreditCard, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../api/axios';
 import { ToastContainer } from '../components/Toast';
@@ -23,6 +23,7 @@ const InputGroup = ({ label, icon: Icon, name, type = "text", fullWidth = false,
 export default function Company() {
     const [formData, setFormData] = useState({
         company_name: '',
+        owner_name: '',
         email: '',
         phone: '',
         address: '',
@@ -100,8 +101,9 @@ export default function Company() {
                 <div>
                     <h2 className="text-lg font-semibold text-white mb-6 border-b border-slate-800 pb-2">Basic Information</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup formData={formData} onChange={handleChange} label="Company Name" icon={Building2} name="company_name" fullWidth />
-                        <InputGroup formData={formData} onChange={handleChange} label="Email Address" icon={Mail} name="email" type="email" />
+                        <InputGroup label="Company Name" icon={Building2} name="company_name" fullWidth formData={formData} onChange={handleChange} />
+                        <InputGroup label="Owner Name" icon={User} name="owner_name" fullWidth formData={formData} onChange={handleChange} />
+                        <InputGroup label="Email Address" icon={Mail} name="email" type="email" formData={formData} onChange={handleChange} />
                         <InputGroup formData={formData} onChange={handleChange} label="Phone Number" icon={Phone} name="phone" type="tel" />
                         <div className="col-span-2">
                             <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>

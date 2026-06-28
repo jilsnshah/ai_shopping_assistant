@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building2, Phone, MapPin, CreditCard, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, Phone, MapPin, CreditCard, FileText, ArrowRight, Loader2, User } from 'lucide-react';
 import api from '../api/axios';
 
 export default function Onboarding() {
@@ -10,6 +10,7 @@ export default function Onboarding() {
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         company_name: '',
+        owner_name: '',
         phone: '',
         address: '',
         city: '',
@@ -85,6 +86,23 @@ export default function Onboarding() {
                                 onChange={handleChange}
                                 required
                                 placeholder="ABC Corporation"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Owner Name */}
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 ml-1 mb-2 block">Owner Name *</label>
+                        <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                                type="text"
+                                name="owner_name"
+                                value={formData.owner_name}
+                                onChange={handleChange}
+                                required
+                                placeholder="John Doe"
                                 className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                             />
                         </div>

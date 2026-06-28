@@ -195,7 +195,7 @@ def onboarding():
         # Update company info with onboarding data (matching seller_id 1 structure)
         company_info['id'] = seller_id  # Use email as ID
         company_info['company_name'] = data.get('company_name', company_info.get('company_name', ''))
-        company_info['owner_name'] = data.get('company_name', company_info.get('company_name', ''))  # Use company name as owner name for now
+        company_info['owner_name'] = data.get('owner_name', company_info.get('owner_name', ''))
         company_info['phone'] = data.get('phone', '')
         company_info['address'] = data.get('address', '')
         company_info['city'] = data.get('city', '')
@@ -403,6 +403,7 @@ def company_info_route():
         if request.method == 'GET':
             return jsonify({
                 'company_name': company_info.get('company_name', ''),
+                'owner_name': company_info.get('owner_name', ''),
                 'email': company_info.get('email', ''),
                 'phone': company_info.get('phone', ''),
                 'address': company_info.get('address', ''),
@@ -419,6 +420,7 @@ def company_info_route():
             
             # Update company info
             company_info['company_name'] = data.get('company_name', company_info.get('company_name', ''))
+            company_info['owner_name'] = data.get('owner_name', company_info.get('owner_name', ''))
             company_info['email'] = data.get('email', company_info.get('email', ''))
             company_info['phone'] = data.get('phone', company_info.get('phone', ''))
             company_info['address'] = data.get('address', company_info.get('address', ''))
