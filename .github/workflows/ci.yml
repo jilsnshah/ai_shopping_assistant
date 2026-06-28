@@ -23,8 +23,10 @@ jobs:
           pip install -r requirements.txt
           
       - name: Create Firebase Credentials
+        env:
+          FIREBASE_CREDS: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
         run: |
-          echo "${{ secrets.FIREBASE_CREDENTIALS_JSON }}" > firebase-credentials.json
+          echo "$FIREBASE_CREDS" > firebase-credentials.json
           
       - name: Run Backend API Tests with Coverage
         run: |
@@ -55,8 +57,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Create Firebase Credentials
+        env:
+          FIREBASE_CREDS: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
         run: |
-          echo "${{ secrets.FIREBASE_CREDENTIALS_JSON }}" > firebase-credentials.json
+          echo "$FIREBASE_CREDS" > firebase-credentials.json
           
       - name: Start Backend Server
         run: |
