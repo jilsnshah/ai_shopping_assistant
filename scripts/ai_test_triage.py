@@ -28,7 +28,7 @@ def analyze_test_failure(log_file_path):
         return
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     prompt = f"""
     You are an expert SDET (Software Development Engineer in Test).
