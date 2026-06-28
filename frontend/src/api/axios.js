@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-let baseURL = import.meta.env.VITE_API_URL || '/api';
+const isProd = import.meta.env.MODE === 'production';
+let baseURL = isProd 
+    ? 'https://sellerhub-ai.onrender.com/api'
+    : (import.meta.env.VITE_API_URL || '/api');
+    
 if (baseURL && !baseURL.endsWith('/api') && baseURL !== '/api') {
     baseURL = `${baseURL.replace(/\/$/, '')}/api`;
 }

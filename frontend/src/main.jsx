@@ -6,7 +6,7 @@ import './index.css'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { FirebaseAuthProvider } from './contexts/FirebaseAuthContext.jsx';
 
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1016270586940-lgtgjv99huagci05ekui0c75rhmp9ffv.apps.googleusercontent.com';
 console.log('🔑 Google Client ID:', clientId);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
