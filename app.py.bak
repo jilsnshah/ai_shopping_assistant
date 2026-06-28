@@ -15,73 +15,74 @@ app = Flask(__name__)
 app.register_blueprint(whatsapp_bp)
 app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
 
-def get_seller_state():
-    seller_id = session.get('seller_id')
-    if not seller_id:
-        return {}, [], []
-    try:
-        from firebase_db import load_seller_data
-        data = load_seller_data(seller_id)
-        if not data:
-            return {}, [], []
-        return data.get('company_info', {}), data.get('products', []), data.get('orders', [])
-    except Exception as e:
-        print(f"Error loading state: {e}")
-        return {}, [], []
+# In-memory storage using dictionaries
+company_info = {}
+products = []
+orders = []
 
-def save_seller_state(company_info, products, orders):
-    seller_id = session.get('seller_id')
-    if not seller_id:
-        return False
+# Load data from Firebase for specific seller
+def load_data_from_firebase(seller_id):
+    global company_info, products, orders
+    
     try:
-        from firebase_db import save_seller_data
+        initialize_firebase()
+        data = load_seller_data(seller_id)
+        
+        # Load company info
+        company_info = data.get('company_info', {})
+        
+        # Load products
+        products = data.get('products', [])
+        
+        # Load orders
+        orders = data.get('orders', [])
+        
+        print(f"✅ Data loaded successfully for seller {seller_id}")
+        print(f"   - Products: {len(products)}")
+        print(f"   - Orders: {len(orders)}")
+        
+    except Exception as e:
+        print(f"❌ Error loading from Firebase: {e}")
+        print(f"ℹ️  Initializing with empty data")
+
+# Save data to Firebase for specific seller
+def save_data_to_firebase(seller_id):
+    global company_info, products, orders
+    
+    try:
         data = {
             'company_info': company_info,
             'products': products,
             'orders': orders
         }
-        return save_seller_data(seller_id, data)
+        
+        result = save_seller_data(seller_id, data)
+        
+        if result:
+            print(f"💾 Data saved successfully for seller {seller_id}")
+        return result
     except Exception as e:
-        print(f"Error saving state: {e}")
+        print(f"❌ Error saving to Firebase: {e}")
         return False
 
 # Initialize Firebase on startup
 initialize_firebase()
 
 # Reload data before each request if seller is in session
+@app.before_request
+def reload_data():
+    seller_id = session.get('seller_id')
+    if seller_id and request.endpoint not in ['login', 'static']:
+        load_data_from_firebase(seller_id)
+
 # Disable caching for all responses
 @app.after_request
 def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
-    
-    # Observability hook: Add Request ID to response headers
-    if hasattr(request, 'req_id'):
-        response.headers['X-Request-ID'] = request.req_id
-        
     return response
 
-import time
-import uuid
-
-@app.before_request
-def start_timer():
-    request.req_id = str(uuid.uuid4())
-    request.start_time = time.time()
-
-@app.after_request
-def log_request(response):
-    if request.path.startswith('/api/'):
-        latency = time.time() - getattr(request, 'start_time', time.time())
-        app.logger.info(
-            f"[Observability] Request ID: {getattr(request, 'req_id', 'unknown')} | "
-            f"Method: {request.method} | "
-            f"Path: {request.path} | "
-            f"Status: {response.status_code} | "
-            f"Latency: {latency:.4f}s"
-        )
-    return response
 
 @app.route('/')
 def index():
@@ -94,8 +95,10 @@ def login():
     if request.method == 'POST':
         data = request.get_json()
         seller_id = data.get('seller_id')
+        
         if seller_id:
             session['seller_id'] = str(seller_id)
+            load_data_from_firebase(seller_id)
             return jsonify({'success': True, 'seller_id': seller_id}), 200
         else:
             return jsonify({'error': 'Seller ID is required'}), 400
@@ -106,8 +109,10 @@ def login():
 def api_login():
     data = request.get_json()
     seller_id = data.get('seller_id')
+    
     if seller_id:
         session['seller_id'] = str(seller_id)
+        load_data_from_firebase(seller_id)
         # fixed
         return jsonify({'success': True, 'seller_id': seller_id}), 200
     else:
@@ -147,7 +152,7 @@ def google_login():
         session['seller_id'] = seller_id
         
         # Load data from Firebase
-        company_info, products, orders = get_seller_state()
+        load_data_from_firebase(seller_id)
         
         # Check if this is a new user (no company_info)
         is_new_user = not company_info or len(company_info) == 0
@@ -183,7 +188,6 @@ def google_login():
 
 @app.route('/api/onboarding', methods=['POST'])
 def onboarding():
-    company_info, products, orders = get_seller_state()
     """Complete seller onboarding with company information"""
     try:
         seller_id = session.get('seller_id')
@@ -212,7 +216,7 @@ def onboarding():
         # (already set in company_info during login)
         
         # Save to Firebase
-        save_seller_state(company_info, products, orders)
+        save_data_to_firebase(seller_id)
         
         return jsonify({
             'success': True,
@@ -268,7 +272,6 @@ def payments():
 
 @app.route('/api/data', methods=['GET'])
 def get_all_data():
-    company_info, products, orders = get_seller_state()
     """Get all seller data (company_info, products, orders) for frontend"""
     try:
         seller_id = session.get('seller_id')
@@ -287,7 +290,6 @@ def get_all_data():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    company_info, products, orders = get_seller_state()
     """Get all products for a seller"""
     try:
         seller_id = session.get('seller_id')
@@ -312,7 +314,6 @@ def get_products():
 
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
-    company_info, products, orders = get_seller_state()
     """Get all orders for a seller"""
     try:
         seller_id = session.get('seller_id')
@@ -340,7 +341,6 @@ def get_orders():
 
 @app.route('/api/update_upi', methods=['POST'])
 def update_upi():
-    company_info, products, orders = get_seller_state()
     """Update seller's UPI ID"""
     try:
         seller_id = session.get('seller_id')
@@ -357,7 +357,7 @@ def update_upi():
         company_info['upi_id'] = upi_id
         
         # Save to Firebase
-        save_seller_state(company_info, products, orders)
+        save_data_to_firebase(seller_id)
         
         return jsonify({
             'message': 'UPI ID updated successfully',
@@ -370,7 +370,6 @@ def update_upi():
 
 @app.route('/api/seller_info', methods=['GET'])
 def get_seller_info():
-    company_info, products, orders = get_seller_state()
     """Get seller information including UPI ID"""
     try:
         seller_id = session.get('seller_id')
@@ -393,7 +392,6 @@ def get_seller_info():
 
 @app.route('/api/company', methods=['GET', 'POST'])
 def company_info_route():
-    company_info, products, orders = get_seller_state()
     """Get or update company information"""
     try:
         seller_id = session.get('seller_id')
@@ -430,7 +428,7 @@ def company_info_route():
             company_info['company_description'] = data.get('company_description', company_info.get('company_description', ''))
             
             # Save to Firebase
-            save_seller_state(company_info, products, orders)
+            save_data_to_firebase(seller_id)
             
             return jsonify({'message': 'Company information updated successfully'}), 200
             
@@ -440,8 +438,8 @@ def company_info_route():
 
 @app.route('/api/products/<int:product_id>', methods=['PUT', 'DELETE'])
 def update_delete_product(product_id):
-    company_info, products, orders = get_seller_state()
     """Update or delete a product"""
+    global products
     
     try:
         seller_id = session.get('seller_id')
@@ -474,7 +472,7 @@ def update_delete_product(product_id):
                     print(f"📦 Updated product: {product}")
                     
                     # Save to Firebase
-                    save_seller_state(company_info, products, orders)
+                    save_data_to_firebase(seller_id)
                     
                     return jsonify({'message': 'Product updated successfully', 'product': product}), 200
             
@@ -485,7 +483,7 @@ def update_delete_product(product_id):
             products = [p for p in products if p.get('id') != product_id]
             
             # Save to Firebase
-            save_seller_state(company_info, products, orders)
+            save_data_to_firebase(seller_id)
             
             return jsonify({'message': 'Product deleted successfully'}), 200
             
@@ -539,7 +537,6 @@ def upload_image():
 
 @app.route('/api/products', methods=['POST'])
 def create_product():
-    company_info, products, orders = get_seller_state()
     """Create a new product"""
     try:
         seller_id = session.get('seller_id')
@@ -572,7 +569,7 @@ def create_product():
         products.append(product)
         
         # Save to Firebase
-        save_seller_state(company_info, products, orders)
+        save_data_to_firebase(seller_id)
         
         return jsonify({'message': 'Product created successfully', 'product': product}), 201
         
@@ -582,7 +579,6 @@ def create_product():
 
 @app.route('/api/orders/<int:order_id>', methods=['PUT'])
 def update_order(order_id):
-    company_info, products, orders = get_seller_state()
     """Update order status"""
     try:
         seller_id = session.get('seller_id')
@@ -629,8 +625,12 @@ def update_order(order_id):
                 if 'delivery_lng' in data:
                     order['delivery_lng'] = data['delivery_lng']
                 
-                # Save to Firebase - save the entire state to capture all modifications
-                save_seller_state(company_info, products, orders)
+                # Save to Firebase - use targeted update for status fields only
+                from firebase_db import update_order_status
+                update_order_status(seller_id, order_id, 
+                    order_status=new_order_status if order_status_changed else None,
+                    payment_status=new_payment_status if payment_status_changed else None
+                )
                 
                 buyer_phone = order.get('buyer_phone')
                 
@@ -1111,7 +1111,7 @@ def razorpay_webhook():
             return jsonify({'status': 'ignored', 'reason': 'no seller_id'}), 200
         
         # Get seller's webhook secret from Razorpay credentials
-        # credentials = get_razorpay_credentials(seller_id)
+        credentials = get_razorpay_credentials(seller_id)
         
         # For now, we'll skip strict signature verification since webhook_secret
         # might not be stored. In production, you should store and verify it.

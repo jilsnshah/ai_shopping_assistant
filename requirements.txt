@@ -9,3 +9,5 @@ langchain
 langchain-google-genai
 langgraph
 google-generativeai
+pytest==8.0.0
+pytest-cov==4.1.0
