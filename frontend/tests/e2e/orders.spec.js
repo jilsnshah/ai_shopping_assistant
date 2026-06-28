@@ -16,6 +16,9 @@ test.describe('Shopping Assistant E2E Tests', () => {
     // In a real E2E test, we would mock the auth state or login via API here.
     // For this demonstration, we are setting up the structure of the E2E tests.
     
+    // Navigate to a valid origin first to access localStorage
+    await page.goto('/');
+    
     // Set mock local storage if the app relies on it
     await page.evaluate(() => {
       localStorage.setItem('seller_id', 'test@example.com');
