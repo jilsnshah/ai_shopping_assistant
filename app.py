@@ -11,7 +11,10 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from razorpay_helper import create_payment_link, handle_payment_success, verify_webhook_signature
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 CORS(app, supports_credentials=True)
 app.register_blueprint(whatsapp_bp)
 app.secret_key = 'your-secret-key-change-in-production'  # Required for sessions
