@@ -245,7 +245,7 @@ Remember: You're chatting with customers via WhatsApp, so be conversational and 
     agent = create_react_agent(
         model=llm,
         tools=tools,
-        state_modifier=system_prompt
+        prompt=system_prompt
     )
     
     return agent
